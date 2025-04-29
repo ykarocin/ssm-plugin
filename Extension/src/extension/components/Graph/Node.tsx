@@ -7,30 +7,41 @@ interface CodeNodeProps {
   fileName: string;
   lines: string[];
   numberLines: number[];
+  calledFile: string;
   isCall?: boolean;
   isSource?: boolean;
   isSink?: boolean;
+  isDashed?: boolean;
 }
 
 export class Node {
   fileName: string;
   lines: string[];
   numberLines: number[];
+  calledFile: string;
+  isCall: boolean;
   isSource: boolean;
   isSink: boolean;
+  isDashed: boolean;
 
   constructor(
     fileName: string,
     lines: string[],
     numberLines: number[],
+    calledFile = "",
+    isCall = false,
     isSource: boolean = false,
-    isSink: boolean = false
+    isSink: boolean = false,
+    isDashed: boolean = false
   ) {
     this.fileName = fileName;
     this.lines = lines;
     this.numberLines = numberLines;
+    this.calledFile = calledFile;
+    this.isCall = isCall;
     this.isSource = isSource;
     this.isSink = isSink;
+    this.isDashed = isDashed;
   }
 
   getWidth() {
@@ -47,9 +58,11 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
   fileName,
   lines,
   numberLines,
+  calledFile,
   isCall = false,
   isSource = false,
-  isSink = false
+  isSink = false,
+  isDashed
 }) => {
   const isSpecial = isCall || isSink;
 
@@ -96,6 +109,22 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
         ry="24"
         fill="#D9D9D9"
       />
+
+      {isDashed && (
+        <rect
+          x="-4"
+          y="-4"
+          width={width + 8}
+          height={lines.length * lineHeight + padding + 8}
+          rx="28"
+          ry="28"
+          fill="none"
+          stroke="#000"
+          strokeWidth="2"
+          strokeDasharray="4 4"
+        />
+      )}
+
 
       {/* Code Lines */}
       {lines.map((line, i) => {
