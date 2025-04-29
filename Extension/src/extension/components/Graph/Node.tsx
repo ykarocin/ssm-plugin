@@ -7,6 +7,7 @@ interface CodeNodeProps {
   fileName: string;
   lines: string[];
   numberLines: number[];
+  isCall?: boolean;
   isSource?: boolean;
   isSink?: boolean;
 }
@@ -46,10 +47,11 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
   fileName,
   lines,
   numberLines,
+  isCall = false,
   isSource = false,
   isSink = false
 }) => {
-  const isSpecial = isSource || isSink;
+  const isSpecial = isCall || isSink;
 
   const width = isSpecial ? 290 : 363;
   const lineSpacing = isSpecial ? 2 : 4;
