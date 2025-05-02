@@ -11,6 +11,10 @@ import "../styles/dependency-plugin.css";
 import SettingsButton from "./Settings/Settings-button";
 import SettingsService from "../../services/SettingsService";
 import { getClassFromJavaFilename, isLineFromLeft } from "@extension/utils";
+import { Node } from "./Graph/Node";
+import { getDiffLine } from "./Diff/diff-navigation";
+import { File } from "./Graph/File";
+import { Grouping_nodes } from "./grouping";
 
 const analysisService = new AnalysisService();
 const settingsService = new SettingsService();
@@ -62,7 +66,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
   /*
    * methods
    */
-  const updateGraph = (dep: dependency, L: lineData, R: lineData, CF?: lineData) => {
+  const updateGraph = (dep: dependency, L: Node, R: Node, CF?: Node) => {
     let newGraphData;
 
     // get the LC and RC
@@ -99,33 +103,85 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
       lineTo = dep.body.interference[dep.body.interference.length - 1]; // last line
     }
 
-    const LC = {
-      file: fileFrom,
-      line: lineFrom.location.line,
-      method: lineFrom.stackTrace?.at(1)?.method ?? lineFrom.location.method
-    };
-    const RC = {
-      file: fileTo,
-      line: lineTo.location.line,
-      method: lineTo.stackTrace?.at(1)?.method ?? lineTo.location.method
-    };
+    const LC_Lines :string[] = [];
+    const LC_Numbers :number[] = [];
+    const RC_Lines :string[] = [];
+    const RC_Numbers :number[] = [];
+    let LeftCall_Row;
+    let RightCall_Row;
+
+    for ( let i = -1; i < 1; i++){
+      LeftCall_Row = getDiffLine(fileFrom, lineFrom.location.line + i);
+      RightCall_Row = getDiffLine(fileTo, lineTo.location.line + i);
+
+      LC_Lines.push(LeftCall_Row.textContent || "");
+      LC_Numbers.push(lineFrom.location.line + i);
+      RC_Lines.push(RightCall_Row.textContent || "");
+      RC_Numbers.push(lineTo.location.line + i);
+    }
+
+    const LC = new Node(fileFrom, LC_Lines, LC_Numbers, L.fileName, true, false, false);
+    const RC = new Node(fileTo, RC_Lines, RC_Numbers, R.fileName, true, false, false);
+
+
+    // const LC = {
+    //   file: fileFrom,
+    //   line: lineFrom.location.line,
+    //   method: lineFrom.stackTrace?.at(1)?.method ?? lineFrom.location.method
+    // };
+    // const RC = {
+    //   file: fileTo,
+    //   line: lineTo.location.line,
+    //   method: lineTo.stackTrace?.at(1)?.method ?? lineTo.location.method
+    // };
 
     // If the nodes are equal, update from the stack trace
-    if (getClassFromJavaFilename(L.file) === getClassFromJavaFilename(LC.file) && L.line === LC.line) {
-      L.file = dep.body.interference[0].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? L.file;
-      L.line = dep.body.interference[0].stackTrace?.at(0)?.line ?? L.line;
+    if (getClassFromJavaFilename(L.fileName) === getClassFromJavaFilename(LC.fileName) && L.numberLines[1] === LC.numberLines[1]) {
+      L.fileName = dep.body.interference[0].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? L.fileName;
+
+      if (dep.body.interference[0].stackTrace?.at(0)?.line){
+        L.numberLines[1] = dep.body.interference[0].stackTrace?.at(0)?.line ?? L.numberLines[1];
+
+        let L_Row;
+        let newNumber = L.numberLines[1];
+        for ( let i = -1; i < 1; i++){
+          L_Row = getDiffLine(L.fileName, newNumber + i);
+    
+          L.lines[i + 1] = L_Row.textContent || "";
+          L.numberLines[i + 1] = newNumber + i;
+        }
+
+      } 
     }
 
-    if (getClassFromJavaFilename(R.file) === getClassFromJavaFilename(RC.file) && R.line === RC.line) {
-      R.file =
-        (dep.type.startsWith("CONFLUENCE")
-          ? dep.body.interference[1].stackTrace?.at(0)?.class.replaceAll(".", "/")
-          : dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.class.replaceAll(".", "/")) ?? R.file;
-      R.line =
-        (dep.type.startsWith("CONFLUENCE")
-          ? dep.body.interference[1].stackTrace?.at(0)?.line
-          : dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.line) ?? R.line;
+    if (getClassFromJavaFilename(R.fileName) === getClassFromJavaFilename(RC.fileName) && R.numberLines[1] === RC.numberLines[1]) {
+      R.fileName = dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? R.fileName;
+
+      if (dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.line){
+        R.numberLines[1] = dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.line ?? R.numberLines[1];
+
+        let R_Row;
+        let newNumber = R.numberLines[1];
+        for ( let i = -1; i < 1; i++){
+          R_Row = getDiffLine(R.fileName, newNumber + i);
+    
+          R.lines[i + 1] = R_Row.textContent || "";
+          R.numberLines[i + 1] = newNumber + i;
+        }
+
+      } 
     }
+
+    // if (getClassFromJavaFilename(R.file) === getClassFromJavaFilename(RC.file) && R.line === RC.line) {
+    //   R.file =
+    //     (dep.type.startsWith("CONFLUENCE")
+    //       ? dep.body.interference[1].stackTrace?.at(0)?.class.replaceAll(".", "/")
+    //       : dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.class.replaceAll(".", "/")) ?? R.file;
+    //   R.line =
+    //     (dep.type.startsWith("CONFLUENCE")
+    //       ? dep.body.interference[1].stackTrace?.at(0)?.line
+    //       : dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.line) ?? R.line;
+    // }
 
     //Sending the correct colors to the nodes
     let lColor = "";
@@ -141,34 +197,36 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
       rColor = "#1E90FF"; //azul
     }
 
-    if (dep.type.startsWith("OA")) {
-      const descriptionRegex = /<(.+:.+)> - .*<(.+:.+)>/;
-      const variables = descriptionRegex.exec(dep.body.description);
+    // Dividing the nodes into files
+    const newGraph = Grouping_nodes(dep, L, R, LC, RC);
 
-      newGraphData = generateGraphData(
-        "oa",
-        { L, R, LC, RC },
-        lColor,
-        rColor,
-        variables ? { variables: { left: variables[1], right: variables[2] } } : undefined
-      );
-    } else if (dep.type.startsWith("CONFLICT")) {
-      const variables = dep.body.description.split(" - ").map((v) => /<(.+:.+)>/.exec(v)?.[1] ?? v);
+      // const descriptionRegex = /<(.+:.+)> - .*<(.+:.+)>/;
+      // const variables = descriptionRegex.exec(dep.body.description);
 
-      // If the conflict is DF
-      newGraphData = generateGraphData("df", { L, R, LC, RC }, lColor, rColor, {
-        variables: { left: variables[0], right: variables[1] }
-      });
-    } else if (dep.type.startsWith("CONFLUENCE")) {
-      if (cfLine) {
-        CF = {
-          file: cfFilename,
-          line: cfLine.location.line,
-          method: cfLine.location.method
-        };
-        newGraphData = generateGraphData("cf", { L, R, LC, RC, CF }, lColor, rColor);
-      }
-    }
+      // newGraphData = generateGraphData(
+      //   "oa",
+      //   { L, R, LC, RC },
+      //   lColor,
+      //   rColor,
+      //   variables ? { variables: { left: variables[1], right: variables[2] } } : undefined
+      // );
+    // } else if (dep.type.startsWith("CONFLICT")) {
+    //   const variables = dep.body.description.split(" - ").map((v) => /<(.+:.+)>/.exec(v)?.[1] ?? v);
+
+    //   // If the conflict is DF
+    //   newGraphData = generateGraphData("df", { L, R, LC, RC }, lColor, rColor, {
+    //     variables: { left: variables[0], right: variables[1] }
+    //   });
+    // } else if (dep.type.startsWith("CONFLUENCE")) {
+    //   if (cfLine) {
+    //     CF = {
+    //       file: cfFilename,
+    //       line: cfLine.location.line,
+    //       method: cfLine.location.method
+    //     };
+    //     newGraphData = generateGraphData("cf", { L, R, LC, RC, CF }, lColor, rColor);
+    //   }
+    // }
 
     // set the new graph data
     if (!newGraphData) setGraphData(null);
@@ -235,16 +293,35 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
       };
       updateGraph(dep, L, R, CF);
     } else {
-      let L: lineData = {
-        file: fileFrom,
-        line: lineFrom.location.line,
-        method: dep.body.interference[0].stackTrace?.at(0)?.method ?? lineFrom.location.method
-      };
-      let R: lineData = {
-        file: fileTo,
-        line: lineTo.location.line,
-        method: dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.method ?? lineTo.location.method
-      };
+      const L_Lines :string[] = [];
+      const L_Numbers :number[] = [];
+      const R_Lines :string[] = [];
+      const R_Numbers :number[] = [];
+      let Left_Row;
+      let Right_Row;
+
+      for ( let i = -1; i < 1; i++){
+        Left_Row = getDiffLine(fileFrom, lineFrom.location.line + i);
+        Right_Row = getDiffLine(fileTo, lineTo.location.line + i);
+
+        L_Lines.push(Left_Row.textContent || "");
+        L_Numbers.push(lineFrom.location.line + i);
+        R_Lines.push(Right_Row.textContent || "");
+        R_Numbers.push(lineTo.location.line + i);
+      }
+
+      const L = new Node(fileFrom, L_Lines, L_Numbers, "", false, true, false);
+      const R = new Node(fileFrom, L_Lines, L_Numbers, "", false, true, false);
+      // let L: lineData = {
+      //   file: fileFrom,
+      //   line: lineFrom.location.line,
+      //   method: dep.body.interference[0].stackTrace?.at(0)?.method ?? lineFrom.location.method
+      // };
+      // let R: lineData = {
+      //   file: fileTo,
+      //   line: lineTo.location.line,
+      //   method: dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.method ?? lineTo.location.method
+      // };
       updateGraph(dep, L, R);
     }
   };
