@@ -1,4 +1,4 @@
-# SSM Plugin
+# InView
 
 A plugin for Github that shows Pull Request's code semantic dependencies through graphs.
 
