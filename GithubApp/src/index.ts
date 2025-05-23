@@ -327,10 +327,10 @@ async function executeAnalysis(
 
   context.log.info("Running static-semantic-merge...");
 
-  const { stdout: analysis_output, stderr: analysis_error } = await pexec(cmd.join(" "));
+  const { stdout: analysis_output, stderr: analysis_error } = await pexec(cmd.join(" "), {maxBuffer: 1024 * 1024 * 10});
 
   // Log the output and error
-  context.log.info(analysis_output);
+  context.log.debug(analysis_output);
   context.log.error(analysis_error);
 }
 

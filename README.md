@@ -1,6 +1,8 @@
-# SSM Plugin
+# InView
 
 A plugin for Github that shows Pull Request's code semantic dependencies through graphs.
+
+This project is licensed under the [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
 
 # Topics
 
