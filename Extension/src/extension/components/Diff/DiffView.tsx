@@ -41,6 +41,10 @@ export default function DiffView({ diff, modifiedLines, filesFromBase }: DiffVie
           // get the diff element of the file
           const diffContent = Array.from(diffFiles).filter((diffFile) => {
             const fileName = diffFile.querySelector(".d2h-file-name")?.textContent;
+            console.log(`[DEBUG] Trying to match:
+                - modline = ${modLine}
+                - modLine.file = ${modLine.file}
+                - diff file    = ${fileName}`);
             return fileName?.endsWith(modLineFile);
           })[0];
           if (!diffContent) throw new Error(`Diff not found for file ${modLineFile}`);

@@ -1,4 +1,4 @@
-import { lineData } from "@extension/components/Graph/graph";
+import { lineData } from "@extension/components/Graph/Sigma/graph";
 import { modLine } from "models/AnalysisOutput";
 
 const getClassFromJavaFilename = (filename: string): string | undefined => {

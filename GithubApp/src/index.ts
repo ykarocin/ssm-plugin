@@ -264,7 +264,7 @@ export default (app: Probot) => {
         const fileContent = fs.readFileSync(file, "utf-8");
         missingFiles.push({ file: file, content: fileContent });
       });
-      endPerformance("get_missing_files_content");
+      endPerformance("get_missing_files_content"); 
 
       // Send the analysis results to the analysis server
       const analysisOutput: IAnalysisOutput = {
