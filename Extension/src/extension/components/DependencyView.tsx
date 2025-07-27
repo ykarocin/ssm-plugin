@@ -311,7 +311,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
       }
 
       const L = new Node(fileFrom, L_Lines, L_Numbers, "", false, true, false);
-      const R = new Node(fileFrom, L_Lines, L_Numbers, "", false, true, false);
+      const R = new Node(fileTo, R_Lines, R_Numbers, "", false, true, false);
       // let L: lineData = {
       //   file: fileFrom,
       //   line: lineFrom.location.line,

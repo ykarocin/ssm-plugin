@@ -5,7 +5,7 @@ import { dependency } from "@src/models/AnalysisOutput";
 const Grouping_nodes = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node) => {
   const graph: File[] = [];
 
-  if (dep.type.startsWith("OA")) {
+  if (dep.type.startsWith("OA") || dep.type.startsWith("CONFLICT")) {
     const fileMap: Map<string, Node[]> = new Map();
 
     const addNodeToFile = (node: Node) => {
