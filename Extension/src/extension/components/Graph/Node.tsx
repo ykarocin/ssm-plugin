@@ -6,7 +6,7 @@ import { firstVisibleLine, lastVisibleLine, expandBottom, expandTop } from "../D
 interface CodeNodeProps {
   fileName: string;
   lines: string[];
-  numberLines: number[];
+  numberHighlight: number;
   calledFile: string;
   isCall?: boolean;
   isSource?: boolean;
@@ -17,7 +17,7 @@ interface CodeNodeProps {
 export class Node {
   fileName: string;
   lines: string[];
-  numberLines: number[];
+  numberHightlight: number;
   calledFile: string;
   isCall: boolean;
   isSource: boolean;
@@ -27,7 +27,7 @@ export class Node {
   constructor(
     fileName: string,
     lines: string[],
-    numberLines: number[],
+    numberHightlight: number,
     calledFile = "",
     isCall = false,
     isSource: boolean = false,
@@ -36,7 +36,7 @@ export class Node {
   ) {
     this.fileName = fileName;
     this.lines = lines;
-    this.numberLines = numberLines;
+    this.numberHightlight = numberHightlight;
     this.calledFile = calledFile;
     this.isCall = isCall;
     this.isSource = isSource;
@@ -57,7 +57,7 @@ export class Node {
 export const CodeNode: React.FC<CodeNodeProps> = ({
   fileName,
   lines,
-  numberLines,
+  numberHighlight,
   calledFile,
   isCall = false,
   isSource = false,
@@ -151,7 +151,7 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
                   fontWeight="400"
                   fill="#333"
                 >
-                  {numberLines[i]}
+                  {numberHighlight + i - 1}
                 </text>
                 <text
                   x="60"
@@ -174,7 +174,7 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
                   fontWeight="400"
                   fill="#333"
                 >
-                  {numberLines[i]}
+                  {numberHighlight + i - 1}
                 </text>
                 <text
                   x="60"

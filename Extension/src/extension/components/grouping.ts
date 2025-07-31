@@ -1,9 +1,13 @@
 import { Node } from "./Graph/Node";
-import { File } from "./Graph/File";
 import { dependency } from "@src/models/AnalysisOutput";
 
+type FileObject = {
+  fileName: string;
+  nodes: Node[];
+};
+
 const Grouping_nodes = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node) => {
-  const graph: File[] = [];
+  const graph: FileObject[] = [];
 
   if (dep.type.startsWith("OA") || dep.type.startsWith("CONFLICT")) {
     const fileMap: Map<string, Node[]> = new Map();
@@ -22,7 +26,7 @@ const Grouping_nodes = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node) =
     [L, R, LC, RC].forEach(addNodeToFile);
 
     for (const [fileName, nodes] of fileMap.entries()) {
-      graph.push(new File(fileName, nodes));
+      graph.push({ fileName, nodes });
     }
 
     return graph;
@@ -30,3 +34,4 @@ const Grouping_nodes = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node) =
 };
 
 export { Grouping_nodes };
+export type { FileObject };

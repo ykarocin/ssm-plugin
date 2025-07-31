@@ -152,7 +152,7 @@ export const FileComponent: React.FC<FileComponentProps> = ({ file, x = 0, y = 0
             <CodeNode
               fileName={node.fileName}
               lines={node.lines}
-              numberLines={node.numberLines}
+              numberHighlight={node.numberHightlight}
               isCall={node.isCall}
               isSink={node.isSink}
               isSource={node.isSource}
