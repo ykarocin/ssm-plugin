@@ -45,12 +45,15 @@ export function extractNodesFromDependency(dep: dependency): {
   const R_Lines: string[] = [];
   let leftRow, rightRow;
 
-  for (let i = -1; i < 1; i++) {
+  for (let i = -1; i <= 1; i++) {
     leftRow = getDiffLine(fileFrom, lineFrom.location.line + i);
     rightRow = getDiffLine(fileTo, lineTo.location.line + i);
 
-    L_Lines.push(leftRow.textContent || "");
-    R_Lines.push(rightRow.textContent || "");
+    const leftText = leftRow.querySelector(".d2h-code-line-ctn")?.textContent;
+    const rightText = rightRow.querySelector(".d2h-code-line-ctn")?.textContent;
+
+    L_Lines.push(leftText || "");
+    R_Lines.push(rightText || "");
   }
 
   const L = new Node(fileFrom, L_Lines, lineFrom.location.line, "", false, true, false);
