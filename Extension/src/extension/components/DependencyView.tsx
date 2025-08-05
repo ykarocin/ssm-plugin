@@ -193,13 +193,13 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
 
     const leftLines = [L, LC];
 
-    if (isLineFromLeft(leftLines, modifiedLines)) {
-      lColor = "#1E90FF"; //azul
-      rColor = "#228B22"; //verde
-    } else {
-      lColor = "#228B22"; //verde
-      rColor = "#1E90FF"; //azul
-    }
+    // if (isLineFromLeft(leftLines, modifiedLines)) {
+    lColor = "#1E90FF"; //azul
+    rColor = "#228B22"; //verde
+    // } else {
+    //   lColor = "#228B22"; //verde
+    //   rColor = "#1E90FF"; //azul
+    // }
 
     // Dividing the nodes into files
     const newGraph = Grouping_nodes(dep, L, R, LC, RC);
