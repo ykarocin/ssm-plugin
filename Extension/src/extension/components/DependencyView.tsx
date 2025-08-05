@@ -142,14 +142,14 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     // };
 
     // If the nodes are equal, update from the stack trace
-    if (getClassFromJavaFilename(L.fileName) === getClassFromJavaFilename(LC.fileName) && L.numberHightlight === LC.numberHightlight) {
+    if (getClassFromJavaFilename(L.fileName) === getClassFromJavaFilename(LC.fileName) && L.numberHighlight === LC.numberHighlight) {
       L.fileName = dep.body.interference[0].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? L.fileName;
 
       if (dep.body.interference[0].stackTrace?.at(0)?.line){
-        L.numberHightlight = dep.body.interference[0].stackTrace?.at(0)?.line ?? L.numberHightlight;
+        L.numberHighlight = dep.body.interference[0].stackTrace?.at(0)?.line ?? L.numberHighlight;
 
         let L_Row;
-        let newNumber = L.numberHightlight;
+        let newNumber = L.numberHighlight;
         for ( let i = -1; i < 1; i++){
           L_Row = getDiffLine(L.fileName, newNumber + i);
     
@@ -159,14 +159,14 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
       } 
     }
 
-    if (getClassFromJavaFilename(R.fileName) === getClassFromJavaFilename(RC.fileName) && R.numberHightlight === RC.numberHightlight) {
+    if (getClassFromJavaFilename(R.fileName) === getClassFromJavaFilename(RC.fileName) && R.numberHighlight === RC.numberHighlight) {
       R.fileName = dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? R.fileName;
 
       if (dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.line){
-        R.numberHightlight = dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.line ?? R.numberHightlight;
+        R.numberHighlight = dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.line ?? R.numberHighlight;
 
         let R_Row;
-        let newNumber = R.numberHightlight;
+        let newNumber = R.numberHighlight;
         for ( let i = -1; i < 1; i++){
           R_Row = getDiffLine(R.fileName, newNumber + i);
     
@@ -469,7 +469,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
                     <CodeNode
                       fileName={leftNode.fileName}
                       lines={leftNode.lines}
-                      numberHighlight={leftNode.numberHightlight}
+                      numberHighlight={leftNode.numberHighlight}
                       calledFile={leftNode.calledFile}
                       isCall={leftNode.isCall}
                       isSource={leftNode.isSource}
@@ -479,7 +479,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
                     <CodeNode
                       fileName={rightNode.fileName}
                       lines={rightNode.lines}
-                      numberHighlight={rightNode.numberHightlight}
+                      numberHighlight={rightNode.numberHighlight}
                       calledFile={rightNode.calledFile}
                       isCall={rightNode.isCall}
                       isSource={rightNode.isSource}

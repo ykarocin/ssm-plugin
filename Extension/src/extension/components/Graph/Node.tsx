@@ -17,7 +17,7 @@ interface CodeNodeProps {
 export class Node {
   fileName: string;
   lines: string[];
-  numberHightlight: number;
+  numberHighlight: number;
   calledFile: string;
   isCall: boolean;
   isSource: boolean;
@@ -27,7 +27,7 @@ export class Node {
   constructor(
     fileName: string,
     lines: string[],
-    numberHightlight: number,
+    numberHighlight: number,
     calledFile = "",
     isCall = false,
     isSource: boolean = false,
@@ -36,7 +36,7 @@ export class Node {
   ) {
     this.fileName = fileName;
     this.lines = lines;
-    this.numberHightlight = numberHightlight;
+    this.numberHighlight = numberHighlight;
     this.calledFile = calledFile;
     this.isCall = isCall;
     this.isSource = isSource;
