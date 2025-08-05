@@ -67,6 +67,7 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
   const isSpecial = isCall || isSink;
 
   const width = isSpecial ? 290 : 363;
+  const lineCharLimit = 32;
   const lineSpacing = isSpecial ? 2 : 4;
   const baseFontSize = isSpecial ? 16 : 20;
   const numberFontSize = isSpecial ? 12 : 14;
@@ -98,7 +99,7 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
   };
 
   return (
-    <svg width={width} height={lines.length * lineHeight + padding}>
+    <svg width={width} height={lines.length * lineHeight + padding} xmlns="http://www.w3.org/2000/svg" overflow={"hidden"}>
       {/* Background */}
       <rect
         x="0"
@@ -132,13 +133,13 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
         const isHighlight = i === 1;
 
         return (
-          <g key={i}>
+          <g key={i} width={width - padding} >
             {isHighlight ? (
               <g onClick={handleClick} style={{ cursor: "pointer" }}>
                 <rect
                   x="20"
                   y={y - baseFontSize}
-                  width={width - 40}
+                  width={width - padding}
                   height={lineHeight}
                   fill="#A9A9A9"
                   rx="8"
@@ -153,15 +154,26 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
                 >
                   {numberHighlight + i - 1}
                 </text>
+                <clipPath id={`bound-rect-${i}`}>
+                  <rect
+                    x="50"
+                    y={y - baseFontSize}
+                    width={width - padding - 30}
+                    height={lineHeight}
+                  />
+                </clipPath>
                 <text
-                  x="60"
+                  x="50"
                   y={y}
                   fontFamily="Roboto"
                   fontSize={baseFontSize}
                   fontWeight="500"
                   fill="#000"
+                  overflow={"hidden"}
+                  style={{whiteSpace: "pre"}}
+                  clipPath={`url(#bound-rect-${i})`}
                 >
-                  {line}
+                  {line.slice(0, lineCharLimit) + (line.length > lineCharLimit ? " ..." : "")}
                 </text>
               </g>
             ) : (
@@ -176,15 +188,26 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
                 >
                   {numberHighlight + i - 1}
                 </text>
+                <clipPath id={`bound-rect-${i}`}>
+                  <rect
+                    x="50"
+                    y={y - baseFontSize}
+                    width={width - padding - 30}
+                    height={lineHeight}
+                  />
+                </clipPath>
                 <text
-                  x="60"
+                  x="50"
                   y={y}
                   fontFamily="Roboto"
                   fontSize={baseFontSize}
                   fontWeight="400"
                   fill="#000"
+                  overflow={"hidden"}
+                  style={{whiteSpace: "pre"}}
+                  clipPath={`url(#bound-rect-${i})`}
                 >
-                  {line}
+                  {line.slice(0, lineCharLimit) + (line.length > lineCharLimit ? " ..." : "")}
                 </text>
               </>
             )}
