@@ -33,13 +33,13 @@ export function extractNodesFromDependency(dep: dependency): {
   }
 
   // if the filename is unknown, try to get the first valid one from the stack trace
-    if (fileFrom === "UNKNOWN" || fileTo === "UNKNOWN") {
-      updateLocationFromStackTrace(dep, { inplace: true });
-      fileFrom = dep.body.interference[0].location.file.replaceAll("\\", "/");
-      fileTo = dep.type.startsWith("CONFLUENCE")
-        ? dep.body.interference[1].location.file.replaceAll("\\", "/")
-        : dep.body.interference[dep.body.interference.length - 1].location.file.replaceAll("\\", "/");
-    }
+  if (fileFrom === "UNKNOWN" || fileTo === "UNKNOWN") {
+    updateLocationFromStackTrace(dep, { inplace: true });
+    fileFrom = dep.body.interference[0].location.file.replaceAll("\\", "/");
+    fileTo = dep.type.startsWith("CONFLUENCE")
+      ? dep.body.interference[1].location.file.replaceAll("\\", "/")
+      : dep.body.interference[dep.body.interference.length - 1].location.file.replaceAll("\\", "/");
+  }
 
   const L_Lines: string[] = [];
   const R_Lines: string[] = [];
