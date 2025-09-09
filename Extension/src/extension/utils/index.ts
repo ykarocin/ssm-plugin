@@ -1,5 +1,5 @@
-import { lineData } from "@extension/components/Graph/graph";
 import { modLine } from "models/AnalysisOutput";
+import { Node } from "@extension/components/Graph/Node";
 
 const getClassFromJavaFilename = (filename: string): string | undefined => {
   if (!filename.endsWith(".java")) return filename.split("/").pop();
@@ -14,14 +14,14 @@ const getMethodNameFromJavaMethod = (methodName: string): string | undefined => 
   return result?.endsWith(")") ? result : `${result}()`;
 };
 
-const isLineFromLeft = (lines: lineData[], modlines: modLine[]): boolean => {
+const isLineFromLeft = (lines: Node[], modlines: modLine[]): boolean => {
   return lines.some((line) =>
     modlines.some(
       (modLine) =>
-        getClassFromJavaFilename(modLine.file) === getClassFromJavaFilename(line.file) &&
-        (modLine.leftAdded.includes(line.line) || modLine.leftRemoved.includes(line.line))
+        getClassFromJavaFilename(modLine.file) === getClassFromJavaFilename(line.fileName) &&
+        (modLine.leftAdded.includes(line.numberHighlight) || modLine.leftRemoved.includes(line.numberHighlight))
     )
-  )   
+  );
 };
 
 export { getClassFromJavaFilename, getMethodNameFromJavaMethod, isLineFromLeft };
