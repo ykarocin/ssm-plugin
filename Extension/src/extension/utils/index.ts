@@ -24,4 +24,8 @@ const isLineFromLeft = (lines: Node[], modlines: modLine[]): boolean => {
   );
 };
 
-export { getClassFromJavaFilename, getMethodNameFromJavaMethod, isLineFromLeft };
+function areArraysEqual(arr1: any[], arr2: any[]) {
+  return arr1.length === arr2.length && arr1.every((value, index) => value === arr2[index]);
+}
+
+export { getClassFromJavaFilename, getMethodNameFromJavaMethod, isLineFromLeft, areArraysEqual };
