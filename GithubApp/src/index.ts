@@ -182,6 +182,9 @@ export default (app: Probot) => {
       jsonOutput.forEach((dependency) => {
         dependency.body.interference.forEach((interference) => {
           // Get the path of the Java file
+          context.log(`Finding Java file for interference: ${interference}`);
+          context.log(`Interference location: ${interference.location}`);
+          context.log(`Interference class: ${interference.location.class}`);
           let javaFilePath = interference.location.class.replace(/\./g, "/") + ".java";
           javaFilePath = searchFile(".", javaFilePath, true, context) ?? "UNKNOWN";
 
@@ -234,6 +237,8 @@ export default (app: Probot) => {
         dependency.body.interference.forEach((interference) => {
           interference.stackTrace?.forEach((node) => {
             // get the java file from the class name
+            context.log(`Finding Node: ${node}`);
+            context.log(`Node class: ${node.class}`);
             let javaFilePath: string | null = node.class.replace(/\./g, "/") + ".java";
 
             // search for the file in the project directory
@@ -285,7 +290,7 @@ export default (app: Probot) => {
     } finally {
       // Go back to the original directory and delete the cloned repository
       process.chdir("..");
-      fs.rmSync(repo, { recursive: true, force: true });
+      // fs.rmSync(repo, { recursive: true, force: true });
     }
   });
 };

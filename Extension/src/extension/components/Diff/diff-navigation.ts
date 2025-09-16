@@ -173,11 +173,11 @@ const getDiffLine = (file: string, line: number) => {
   const diffContainer = document.getElementById("diff-container");
   const diffFiles = diffContainer?.querySelectorAll(".d2h-file-wrapper");
   if (!diffContainer || !diffFiles) throw new Error("Diff not found");
-
+  console.log(diffFiles);
   // get the diff element of the file
   const diffContent = Array.from(diffFiles).filter((diffFile) => {
     const fileName = diffFile.querySelector(".d2h-file-name")?.textContent;
-    return fileName?.endsWith(file);
+    return fileName && fileName.includes(file);
   })[0];
   if (!diffContent) throw new Error(`Diff not found for file ${file}`);
 

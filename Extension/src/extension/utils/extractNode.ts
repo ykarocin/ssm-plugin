@@ -48,7 +48,6 @@ export function extractNodesFromDependency(dep: dependency): {
   for (let i = -1; i <= 1; i++) {
     leftRow = getDiffLine(fileFrom, lineFrom.location.line + i);
     rightRow = getDiffLine(fileTo, lineTo.location.line + i);
-
     const leftText = leftRow.querySelector(".d2h-code-line-ctn")?.textContent;
     const rightText = rightRow.querySelector(".d2h-code-line-ctn")?.textContent;
 
@@ -58,7 +57,7 @@ export function extractNodesFromDependency(dep: dependency): {
 
   const L = new Node(fileFrom, L_Lines, lineFrom.location.line, "", false, true, false);
   const R = new Node(fileTo, R_Lines, lineTo.location.line, "", false, true, false);
-
+  console.log("Extracted nodes(0):", { L, R });
   const result = { L, R } as { L: Node; R: Node; CF?: Node };
 
   return result;

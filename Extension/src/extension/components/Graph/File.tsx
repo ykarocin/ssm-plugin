@@ -1,7 +1,6 @@
-// components/File.tsx
 import React from "react";
 import { CodeNode, Node } from "./Node";
-import "../App.css";
+import "../../../app/App.css";
 
 export class File {
   nodes: Node[];
@@ -21,8 +20,8 @@ interface FileComponentProps {
 
 export const FileComponent: React.FC<FileComponentProps> = ({ file, x = 0, y = 0 }) => {
   const padding = 20;
-  const columnSpacing = 20;
-  const rowSpacing = 60;
+  // const columnSpacing = 20;
+  const rowSpacing = 24;
 
   const nodeWidths = file.nodes.map((node) => node.getWidth());
   const nodeHeights = file.nodes.map((node) => node.getHeight(30));
@@ -39,27 +38,32 @@ export const FileComponent: React.FC<FileComponentProps> = ({ file, x = 0, y = 0
 
   const nodeCount = file.nodes.length;
 
-  const columns = nodeCount <= 2 ? 1 : 2;
-  const rows = Math.ceil(nodeCount / 2);
+  const columns = 1;
+  const rows = nodeCount;
 
   const maxNodeWidth = Math.max(...nodeWidths);
-  const totalWidth = columns * maxNodeWidth + (columns - 1) * columnSpacing + padding * 2;
+  const totalWidth = maxNodeWidth + padding * 6;
 
   const rowHeights: number[] = [];
   for (let r = 0; r < rows; r++) {
-    const rowNodes = file.nodes.slice(r * 2, r * 2 + 2);
+    const rowNodes = [file.nodes[r]];
     const rowHeight = Math.max(...rowNodes.map((n) => n.getHeight(30)));
     rowHeights.push(rowHeight);
   }
 
-  const totalHeight = rowHeights.reduce((a, b) => a + b, 0) + (rows - 1) * rowSpacing + padding * 2;
+  const extraYOffset = 16;
+  const maxNodeHeight = Math.max(...nodeHeights);
+  const totalHeight =
+  Math.max(
+    rowHeights.reduce((a, b) => a + b, 0) + (rows - 1) * rowSpacing + padding * 2 + extraYOffset,
+    maxNodeHeight + padding + extraYOffset + 32
+  );
 
   const getNodePosition = (index: number) => {
-    const col = index % 2;
-    const row = Math.floor(index / 2);
-    const xPos = x + padding + col * (maxNodeWidth + columnSpacing);
+    const row = index;
+    const xPos = x + padding;
     const yPos =
-      y + padding +
+      y + padding + extraYOffset +
       rowHeights.slice(0, row).reduce((a, b) => a + b, 0) +
       row * rowSpacing;
     return { x: xPos, y: yPos };
@@ -99,6 +103,8 @@ export const FileComponent: React.FC<FileComponentProps> = ({ file, x = 0, y = 0
     });
   });
 
+  const foldSize = 32;
+  const fileFill = "white";
   return (
     <svg width={totalWidth} height={totalHeight}>
       <defs>
@@ -114,15 +120,31 @@ export const FileComponent: React.FC<FileComponentProps> = ({ file, x = 0, y = 0
         </marker>
       </defs>
 
-      <rect
-        x={x}
-        y={y}
-        width={totalWidth}
-        height={totalHeight}
-        fill="white"
+      {/* Retângulo com dobra */}
+      <polygon
+        points={`
+          ${x},${y}
+          ${x + totalWidth - foldSize},${y}
+          ${x + totalWidth},${y + foldSize}
+          ${x + totalWidth},${y + totalHeight}
+          ${x},${y + totalHeight}
+        `}
+        fill={fileFill}
         stroke="black"
         strokeWidth={2}
         rx={8}
+      />
+
+      {/* Dobradinha */}
+      <polygon
+        points={`
+          ${x + totalWidth - foldSize},${y}
+          ${x + totalWidth - foldSize},${y + foldSize}
+          ${x + totalWidth},${y + foldSize}
+        `}
+        fill={fileFill}
+        stroke="black"
+        strokeWidth={1}
       />
 
       {isCallOnly && (
@@ -153,10 +175,10 @@ export const FileComponent: React.FC<FileComponentProps> = ({ file, x = 0, y = 0
               fileName={node.fileName}
               lines={node.lines}
               numberHighlight={node.numberHightlight}
-              isCall={node.isCall}
+              // isCall={node.isCall}
               isSink={node.isSink}
               isSource={node.isSource}
-              calledFile={node.calledFile}
+              // calledFile={node.calledFile}
               isDashed={node.isDashed}
             />
           </g>

@@ -13,8 +13,8 @@ import SettingsService from "../../services/SettingsService";
 import { getClassFromJavaFilename, isLineFromLeft } from "@extension/utils";
 import { Node, CodeNode } from "./Graph/Node";
 import { getDiffLine } from "./Diff/diff-navigation";
-import { File } from "./Graph/File";
-import { Grouping_nodes } from "./grouping";
+import { File, FileComponent } from "./Graph/File";
+import { FileObject, Grouping_nodes } from "./grouping";
 import { extractNodesFromDependency } from "../utils/extractNode";
 
 const analysisService = new AnalysisService();
@@ -58,7 +58,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
   const [loading, setloading] = useState<boolean>(true);
   const [leftNode, setLeftNode] = useState<Node | null>(null);
   const [rightNode, setRightNode] = useState<Node | null>(null);
-
+  const [fileData, setFileData] = useState<FileObject[] | null>(null);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -77,7 +77,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     dep = updateLocationFromStackTrace(dep, { inplace: false, mode: "deep" });
 
     const { L: LC, R: RC } = extractNodesFromDependency(dep);
-
+    console.log("Nodes de call extraídos:", { LC, RC });
     // get the filename and line numbers of the conflict
     // let fileFrom;
     // let lineFrom;
@@ -142,22 +142,26 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     // };
 
     // If the nodes are equal, update from the stack trace
+    // O PROBLEMA ESTÁ DENTRO DESSE IF, O CÓDIGO NÃO PASSA DAQUI
     if (getClassFromJavaFilename(L.fileName) === getClassFromJavaFilename(LC.fileName) && L.numberHightlight === LC.numberHightlight) {
+      console.log("ENTREI NO IF");
       L.fileName = dep.body.interference[0].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? L.fileName;
-
+      console.log("Depois de possivel atualização de L.fileName:", L.fileName);
       if (dep.body.interference[0].stackTrace?.at(0)?.line){
+        console.log("Linha encontrada no stack trace:", dep.body.interference[0].stackTrace?.at(0)?.line);
         L.numberHightlight = dep.body.interference[0].stackTrace?.at(0)?.line ?? L.numberHightlight;
 
         let L_Row;
         let newNumber = L.numberHightlight;
-        for ( let i = -1; i < 1; i++){
+        for ( let i = -1; i <= 1; i++){
           L_Row = getDiffLine(L.fileName, newNumber + i);
-    
-          L.lines[i + 1] = L_Row.textContent || "";
+          console.log("L_Row:", L_Row);
+          L.lines[i + 1] = L_Row.querySelector(".d2h-code-line-ctn")?.textContent || "";
         }
 
       } 
     }
+    console.log("Depois de possivel atualização de L:", L);
 
     if (getClassFromJavaFilename(R.fileName) === getClassFromJavaFilename(RC.fileName) && R.numberHightlight === RC.numberHightlight) {
       R.fileName = dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? R.fileName;
@@ -169,8 +173,8 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
         let newNumber = R.numberHightlight;
         for ( let i = -1; i < 1; i++){
           R_Row = getDiffLine(R.fileName, newNumber + i);
-    
-          R.lines[i + 1] = R_Row.textContent || "";
+          console.log("R_Row:", R_Row);
+          R.lines[i + 1] = R_Row.querySelector(".d2h-code-line-ctn")?.textContent || "";
         }
 
       } 
@@ -202,7 +206,9 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     // }
 
     // Dividing the nodes into files
+    console.log("antes de dividir os arquivos");
     const newGraph = Grouping_nodes(dep, L, R, LC, RC);
+    console.log("Graph de arquivos:", newGraph);
 
       // const descriptionRegex = /<(.+:.+)> - .*<(.+:.+)>/;
       // const variables = descriptionRegex.exec(dep.body.description);
@@ -233,16 +239,17 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     // }
 
     // set the new graph data
-    if (!newGraphData) setGraphData(null);
-    else setGraphData(newGraphData);
+    // if (!newGraphData) setGraphData(null);
+    // else setGraphData(newGraphData);
+    if (!newGraph) setFileData(null);
+    else setFileData(newGraph);
   };
 
   const changeActiveConflict = (dep: dependency) => {
-
     const { L, R, CF } = extractNodesFromDependency(dep);
     setLeftNode(L);
     setRightNode(R);
-    // updateGraph(dep, L, R, CF);
+    updateGraph(dep, L, R, CF);
     // // get the filename and line numbers of the conflict
     // let fileFrom;
     // let lineFrom;
@@ -464,30 +471,13 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
             {diff ? (
               <div id="content-container" className="tw-w-full">
                 {/* {graphData && <GraphView data={graphData} />} */}
-                {leftNode && rightNode ? (
+                {fileData && (
                   <div className="tw-flex tw-gap-8 tw-justify-center tw-mb-6">
-                    <CodeNode
-                      fileName={leftNode.fileName}
-                      lines={leftNode.lines}
-                      numberHighlight={leftNode.numberHightlight}
-                      calledFile={leftNode.calledFile}
-                      isCall={leftNode.isCall}
-                      isSource={leftNode.isSource}
-                      isSink={leftNode.isSink}
-                      isDashed={leftNode.isDashed}
-                    />
-                    <CodeNode
-                      fileName={rightNode.fileName}
-                      lines={rightNode.lines}
-                      numberHighlight={rightNode.numberHightlight}
-                      calledFile={rightNode.calledFile}
-                      isCall={rightNode.isCall}
-                      isSource={rightNode.isSource}
-                      isSink={rightNode.isSink}
-                      isDashed={rightNode.isDashed}
-                    />
+                     {fileData.map((file, index) => (
+                       <FileComponent key={index} file={new File(file.fileName, file.nodes)} />
+                      ))}
                   </div>
-                ) : null}
+                )}
                 <DiffView diff={diff} modifiedLines={modifiedLines} filesFromBase={filesFromBase} />
               </div>
             ) : (

@@ -7,11 +7,12 @@ interface CodeNodeProps {
   fileName: string;
   lines: string[];
   numberHighlight: number;
-  calledFile: string;
-  isCall?: boolean;
+  // calledFile: string;
+  // isCall?: boolean;
   isSource?: boolean;
   isSink?: boolean;
   isDashed?: boolean;
+  origin?: "L" | "R" | "LC" | "RC";
 }
 
 export class Node {
@@ -23,6 +24,7 @@ export class Node {
   isSource: boolean;
   isSink: boolean;
   isDashed: boolean;
+  origin?: "L" | "R" | "LC" | "RC";
 
   constructor(
     fileName: string,
@@ -32,7 +34,8 @@ export class Node {
     isCall = false,
     isSource: boolean = false,
     isSink: boolean = false,
-    isDashed: boolean = false
+    isDashed: boolean = false,
+    origin?: "L" | "R" | "LC" | "RC"
   ) {
     this.fileName = fileName;
     this.lines = lines;
@@ -42,6 +45,7 @@ export class Node {
     this.isSource = isSource;
     this.isSink = isSink;
     this.isDashed = isDashed;
+    this.origin = origin;
   }
 
   getWidth() {
@@ -58,13 +62,13 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
   fileName,
   lines,
   numberHighlight,
-  calledFile,
-  isCall = false,
+  // calledFile,
+  // isCall = false,
   isSource = false,
   isSink = false,
   isDashed
 }) => {
-  const isSpecial = isCall || isSink;
+  const isSpecial = isSink;
 
   const width = isSpecial ? 290 : 363;
   const lineCharLimit = 32;
