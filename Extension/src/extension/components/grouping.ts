@@ -1,6 +1,5 @@
 import { Node } from "./Graph/Node";
 import { dependency } from "@src/models/AnalysisOutput";
-import { areArraysEqual } from "@extension/utils";
 
 type FileObject = {
   fileName: string;
@@ -19,7 +18,7 @@ const Grouping_nodes = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node) =
       }
       const fileNodes = fileMap.get(node.fileName)!;
 
-      if (!fileNodes.some((n) => areArraysEqual(n.lines, node.lines))) {
+      if (!fileNodes.some((n) => n.numberHighlight === node.numberHighlight)) {
         fileNodes.push(node);
       }
     };
