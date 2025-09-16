@@ -8,8 +8,16 @@ const ConflictGridType = {
   A1: { layout: { rows: 2, columns: 3 }, positions: [[1, 2], [2, 2]] },
   A2: { layout: { rows: 2, columns: 3 }, positions: [[1, 2], [2, 2]] },
   B2: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [2, 1], [2, 2]] },
-  C2: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [2, 1], [1, 2]] },
-  default: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [2, 1], [1, 2], [2, 2]] }
+  C2: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [1, 2], [2, 2]] },
+  D2: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [2, 1], [2, 2]] },
+  E2: { layout: { rows: 2, columns: 2 }, positions: [[1, 2], [2, 1], [2, 2]] },
+  F2: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [1, 2], [2, 1], [2, 2]] },
+  A3: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [1, 2], [2, 1]] },
+  B3: { layout: { rows: 2, columns: 2 }, positions: [[1, 2], [2, 1], [2, 2]] },
+  C3: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [1, 2], [2, 1], [2, 2]] },
+  D3: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [1, 2], [2, 1], [2, 2]] },
+  A4: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [1, 2], [2, 1], [2, 2]] },
+  default: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [1, 2], [2, 1], [2, 2]] }
 };
 
 interface GraphViewProps {
