@@ -25,6 +25,12 @@ const Grouping_nodes = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node) =
     };
 
     [L, R, LC, RC].forEach(addNodeToFile);
+    // sort nodes by line
+    graph.forEach(file => {
+      file.nodes.sort((a, b) => {
+        return a.numberHighlight - b.numberHighlight;
+      });
+    });
 
     for (const [fileName, nodes] of fileMap.entries()) {
       graph.push({ fileName, nodes });
