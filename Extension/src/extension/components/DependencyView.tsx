@@ -101,7 +101,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
 
         let L_Row;
         let newNumber = L.numberHighlight;
-        for ( let i = -1; i < 1; i++){
+        for ( let i = -1; i <= 1; i++){
           L_Row = getDiffLine(L.fileName, newNumber + i);
     
           L.lines[i + 1] = L_Row.querySelector(".d2h-code-line-ctn")?.textContent || "";
@@ -118,7 +118,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
 
         let R_Row;
         let newNumber = R.numberHighlight;
-        for ( let i = -1; i < 1; i++){
+        for ( let i = -1; i <= 1; i++){
           R_Row = getDiffLine(R.fileName, newNumber + i);
 
           R.lines[i + 1] = R_Row.querySelector(".d2h-code-line-ctn")?.textContent || "";
