@@ -4,7 +4,7 @@ import { dependency, modLine } from "../../models/AnalysisOutput";
 import { filterDuplicatedDependencies, updateLocationFromStackTrace } from "./dependencies";
 import Conflict from "./Conflict";
 import DiffView from "./Diff/DiffView";
-import GraphView from "./Graph/GraphView";
+import GraphView, { ConflictGridType } from "./Graph/GraphView";
 import "../styles/dependency-plugin.css";
 import SettingsButton from "./Settings/Settings-button";
 import SettingsService from "../../services/SettingsService";
