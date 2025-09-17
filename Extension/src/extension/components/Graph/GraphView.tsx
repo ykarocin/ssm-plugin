@@ -23,9 +23,10 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
       gridRef.current.setLayout(conflictGridType.layout);
 
       console.log("Inserting grid elements");
+      let curNodeIndex = 0;
       data.forEach((fileObject, fileIndex) => {
         fileObject.nodes.forEach((node, nodeIndex) => {
-          const posIndex = fileIndex + nodeIndex;
+          const posIndex = curNodeIndex++;
           const position = conflictGridType.positions[posIndex];
           gridRef.current!.setCellElement(position[0] - 1, position[1] - 1,
             <CodeNode
