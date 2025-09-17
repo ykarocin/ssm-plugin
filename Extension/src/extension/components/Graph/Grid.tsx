@@ -1,6 +1,6 @@
 import { useState, useImperativeHandle, forwardRef, useEffect } from "react";
 
-type layout = {
+export type layout = {
   rows: number;
   columns: number;
   rowSizes?: number[];
