@@ -11,7 +11,7 @@ import SettingsService from "../../services/SettingsService";
 import { getClassFromJavaFilename, isLineFromLeft } from "@extension/utils";
 import { Node } from "./Graph/Node";
 import { getDiffLine } from "./Diff/diff-navigation";
-import { FileObject, Grouping_nodes } from "./grouping";
+import { FileObject, Grouping_nodes, getGraphType } from "./grouping";
 import { extractNodesFromDependency } from "../utils/extractNode";
 
 const analysisService = new AnalysisService();
@@ -23,6 +23,11 @@ async function getAnalysisOutput(owner: string, repository: string, pull_number:
 
 async function getSettings(owner: string, repository: string, pull_number: number) {
   return await settingsService.getSettings(owner, repository, pull_number);
+}
+
+type GraphData = {
+  files: FileObject[];
+  graphType: ConflictGridType;
 }
 
 interface DependencyViewProps {
@@ -76,7 +81,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
   /*
    * graph properties
    */
-  const [graphData, setGraphData] = useState<FileObject[] | null>(null);
+  const [graphData, setGraphData] = useState<GraphData | null>(null);
 
   /*
    * methods
@@ -140,9 +145,12 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     // Dividing the nodes into files
     const newGraphData = Grouping_nodes(dep, L, R, LC, RC);
 
+    // identifying the graph type
+    const graphType = getGraphType(dep, L, R, LC, RC);
+
     // set the new graph data
-    if (!newGraphData) setGraphData(null);
-    else setGraphData(newGraphData);
+    if (!newGraphData || !graphType) setGraphData(null);
+    else setGraphData({ files: newGraphData, graphType });
   };
 
   const changeActiveConflict = (dep: dependency) => {
@@ -278,7 +286,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
 
             {diff ? (
               <div id="content-container" className="tw-w-full">
-                {graphData && <GraphView data={graphData} />}
+                {graphData && <GraphView data={graphData.files} conflictGridType={graphData.graphType} />}
                 <DiffView diff={diff} modifiedLines={modifiedLines} filesFromBase={filesFromBase} />
               </div>
             ) : (
