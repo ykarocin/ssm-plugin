@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
 import Grid, { gridRef } from "./Grid";
 import { FileObject } from "../grouping";
-import { CodeNode } from "./Node";
+import { FileComponent } from "./File";
 import { layout } from "./Grid";
 
 export type ConflictGridType = {
@@ -23,29 +23,22 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
       gridRef.current.setLayout(conflictGridType.layout);
 
       console.log("Inserting grid elements");
-      let curNodeIndex = 0;
       data.forEach((fileObject, fileIndex) => {
-        fileObject.nodes.forEach((node, nodeIndex) => {
-          const posIndex = curNodeIndex++;
-          const position = conflictGridType.positions[posIndex];
+        console.log(`Processing file: ${fileObject.fileName}`);
+        const position = conflictGridType.positions[fileIndex];
+        // Ensure position is valid before attempting to set the cell element
+        if (position) {
+          // Pass the entire fileObject to the FileComponent
           gridRef.current!.setCellElement(position[0] - 1, position[1] - 1,
-            <CodeNode
-              key={`${fileObject.fileName}-${nodeIndex}`}
-              fileName={node.fileName}
-              lines={node.lines}
-              numberHighlight={node.numberHighlight}
-              calledFile={node.calledFile}
-              isCall={node.isCall}
-              isSource={node.isSource}
-              isSink={node.isSink}
-              isDashed={node.isDashed}
+            <FileComponent
+              key={fileObject.fileName}
+              file={fileObject}
             />
           );
-        });
+        }
       });
     }
   }, [data, conflictGridType]);
-
 
   return conflictGridType ? <Grid width={300} height={100} layout={conflictGridType.layout} ref={gridRef} /> : null;
 }

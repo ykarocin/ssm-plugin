@@ -1,6 +1,13 @@
 import { modLine } from "models/AnalysisOutput";
 import { Node } from "@extension/components/Graph/Node";
 
+const ensureJavaExtension = (fileName: string): string => {
+  if (fileName.endsWith(".java")) {
+    return fileName;
+  }
+  return fileName + ".java";
+};
+
 const getClassFromJavaFilename = (filename: string): string | undefined => {
   if (!filename.endsWith(".java")) return filename.split("/").pop();
   return filename
@@ -28,4 +35,4 @@ function areArraysEqual(arr1: any[], arr2: any[]) {
   return arr1.length === arr2.length && arr1.every((value, index) => value === arr2[index]);
 }
 
-export { getClassFromJavaFilename, getMethodNameFromJavaMethod, isLineFromLeft, areArraysEqual };
+export { getClassFromJavaFilename, getMethodNameFromJavaMethod, isLineFromLeft, areArraysEqual, ensureJavaExtension };

@@ -8,7 +8,7 @@ import GraphView, { ConflictGridType } from "./Graph/GraphView";
 import "../styles/dependency-plugin.css";
 import SettingsButton from "./Settings/Settings-button";
 import SettingsService from "../../services/SettingsService";
-import { getClassFromJavaFilename, isLineFromLeft } from "@extension/utils";
+import { getClassFromJavaFilename, isLineFromLeft, ensureJavaExtension } from "@extension/utils";
 import { Node } from "./Graph/Node";
 import { getDiffLine } from "./Diff/diff-navigation";
 import { FileObject, Grouping_nodes, getGraphType } from "./grouping";
@@ -94,7 +94,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
 
     // If the nodes are equal, update from the stack trace
     if (getClassFromJavaFilename(L.fileName) === getClassFromJavaFilename(LC.fileName) && L.numberHighlight === LC.numberHighlight) {
-      L.fileName = dep.body.interference[0].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? L.fileName;
+      L.fileName = ensureJavaExtension(dep.body.interference[0].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? L.fileName);
 
       if (dep.body.interference[0].stackTrace?.at(0)?.line){
         L.numberHighlight = dep.body.interference[0].stackTrace?.at(0)?.line ?? L.numberHighlight;
@@ -111,7 +111,8 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     }
 
     if (getClassFromJavaFilename(R.fileName) === getClassFromJavaFilename(RC.fileName) && R.numberHighlight === RC.numberHighlight) {
-      R.fileName = dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? R.fileName;
+      
+      R.fileName = ensureJavaExtension(dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? R.fileName);
 
       if (dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.line){
         R.numberHighlight = dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.line ?? R.numberHighlight;
@@ -142,6 +143,10 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     //   rColor = "#1E90FF"; //azul
     // }
 
+    console.log("Left Node:", L);
+    console.log("Right Node:", R);
+    console.log("Left Call Node:", LC);
+    console.log("Right Call Node:", RC);
     // Dividing the nodes into files
     const newGraphData = Grouping_nodes(dep, L, R, LC, RC);
 

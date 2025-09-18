@@ -1,48 +1,38 @@
-// components/File.tsx
 import React from "react";
 import { CodeNode, Node } from "./Node";
-import "../App.css";
-
-export class File {
-  nodes: Node[];
-  name: string;
-
-  constructor(name: string, nodes: Node[]) {
-    this.name = name;
-    this.nodes = nodes.slice(0, 4);
-  }
-}
+import { FileObject } from "../grouping";
+import "../../../app/App.css";
 
 interface FileComponentProps {
-  file: File;
-  x?: number;
-  y?: number;
+  file: FileObject;
 }
 
-export const FileComponent: React.FC<FileComponentProps> = ({ file, x = 0, y = 0 }) => {
+export const FileComponent: React.FC<FileComponentProps> = ({ file }) => {
   const padding = 20;
   const columnSpacing = 20;
   const rowSpacing = 60;
 
-  const nodeWidths = file.nodes.map((node) => node.getWidth());
-  const nodeHeights = file.nodes.map((node) => node.getHeight(30));
+  // Use a map to get width and height for each node
+  const nodeDimensions = file.nodes.map((node) => ({
+    width: node.getWidth(),
+    height: node.getHeight(30)
+  }));
 
   const isCallOnly = file.nodes.every((n) => n.isCall);
 
-  if (!isCallOnly && file.nodes.some((n) => n.isCall)){
+  if (!isCallOnly && file.nodes.some((n) => n.isCall)) {
     file.nodes.forEach((n) => {
       if (n.isCall) {
         n.isDashed = true;
       }
-    })
+    });
   }
 
   const nodeCount = file.nodes.length;
-
   const columns = nodeCount <= 2 ? 1 : 2;
   const rows = Math.ceil(nodeCount / 2);
 
-  const maxNodeWidth = Math.max(...nodeWidths);
+  const maxNodeWidth = Math.max(...nodeDimensions.map(d => d.width));
   const totalWidth = columns * maxNodeWidth + (columns - 1) * columnSpacing + padding * 2;
 
   const rowHeights: number[] = [];
@@ -52,14 +42,13 @@ export const FileComponent: React.FC<FileComponentProps> = ({ file, x = 0, y = 0
     rowHeights.push(rowHeight);
   }
 
-  const totalHeight = rowHeights.reduce((a, b) => a + b, 0) + (rows - 1) * rowSpacing + padding * 2;
+  const totalHeight = rowHeights.reduce((a, b) => a + b, 0) + (rows - 1) * rowSpacing + padding * 2 + 30; // 30 is for the file name
 
   const getNodePosition = (index: number) => {
     const col = index % 2;
     const row = Math.floor(index / 2);
-    const xPos = x + padding + col * (maxNodeWidth + columnSpacing);
-    const yPos =
-      y + padding +
+    const xPos = padding + col * (maxNodeWidth + columnSpacing);
+    const yPos = padding + 30 +
       rowHeights.slice(0, row).reduce((a, b) => a + b, 0) +
       row * rowSpacing;
     return { x: xPos, y: yPos };
@@ -115,8 +104,8 @@ export const FileComponent: React.FC<FileComponentProps> = ({ file, x = 0, y = 0
       </defs>
 
       <rect
-        x={x}
-        y={y}
+        x={0}
+        y={0}
         width={totalWidth}
         height={totalHeight}
         fill="white"
@@ -127,8 +116,8 @@ export const FileComponent: React.FC<FileComponentProps> = ({ file, x = 0, y = 0
 
       {isCallOnly && (
         <rect
-          x={x - 4}
-          y={y - 4}
+          x={-4}
+          y={-4}
           width={totalWidth + 8}
           height={totalHeight + 8}
           rx={12}
@@ -140,8 +129,8 @@ export const FileComponent: React.FC<FileComponentProps> = ({ file, x = 0, y = 0
         />
       )}
 
-      <text x={x + 16} y={y + 24} fontSize={16} fontWeight="bold" fill="#000">
-        {file.name}
+      <text x={16} y={24} fontSize={16} fontWeight="bold" fill="#000">
+        {file.fileName}
       </text>
 
       {/* Nodes */}
