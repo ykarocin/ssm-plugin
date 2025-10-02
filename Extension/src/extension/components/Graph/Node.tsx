@@ -1,5 +1,5 @@
 // components/CodeNode.tsx
-import React from "react";
+import React, { CSSProperties } from "react";
 import { getDiffLine, scrollAndHighlight } from "../Diff/diff-navigation";
 import { firstVisibleLine, lastVisibleLine, expandBottom, expandTop } from "../Diff/InsertButtons";
 
@@ -12,6 +12,7 @@ interface CodeNodeProps {
   isSource?: boolean;
   isSink?: boolean;
   isDashed?: boolean;
+  style?: CSSProperties;
 }
 
 export class Node {
@@ -62,7 +63,8 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
   isCall = false,
   isSource = false,
   isSink = false,
-  isDashed
+  isDashed,
+  style
 }) => {
   const isSpecial = isCall || isSink;
 
@@ -99,7 +101,7 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
   };
 
   return (
-    <svg width={width} height={lines.length * lineHeight + padding} xmlns="http://www.w3.org/2000/svg" overflow={"hidden"}>
+    <svg width={width} height={lines.length * lineHeight + padding} xmlns="http://www.w3.org/2000/svg" overflow={"hidden"} style={{ ...style, position: "relative" }}>
       {/* Background */}
       <rect
         x="0"

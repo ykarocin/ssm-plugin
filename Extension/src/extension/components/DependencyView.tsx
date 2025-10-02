@@ -152,6 +152,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
 
     // identifying the graph type
     const graphType = getGraphType(dep, L, R, LC, RC);
+    console.log("GraphType Identificado: ", graphType);
 
     // set the new graph data
     if (!newGraphData || !graphType) setGraphData(null);
