@@ -10,6 +10,7 @@ interface FileComponentProps {
 }
 
 export const FileComponent: React.FC<FileComponentProps> = ({ file, width, height }) => {
+  console.log("Rendering FileComponent for file:", file.fileName);;
   const foldSize = 32;
   // const padding = 20;
   // const columnSpacing = 20;

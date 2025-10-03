@@ -23,26 +23,34 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
   const fileSpacing = 140;
 
   const [fileContours, setFileContours] = useState<
-    { key: string; file: FileObject; width: number; height: number; minRow: number; minCol: number }[]
+    { key: string; file: FileObject; width: number; height: number, left: number, top: number }[]
   >([]);
+
+  const contours: typeof fileContours = [];
+  const cells = gridRef.current?.getCells() ?? [];
+
+  const nodeRefs = useRef<Array<Array<HTMLDivElement | null>>>([]);
 
   useEffect(() => {
     if (gridRef.current && conflictGridType) {
       gridRef.current.setLayout(conflictGridType.layout);
 
       let curNodeIndex = 0;
-      const contours: typeof fileContours = [];
 
       data.forEach((fileObject, fileIndex) => {
-        const nodePositions: { row: number; col: number }[] = [];
+        const nodesIndex: number[] = [];
+        nodeRefs.current[fileIndex] = [];
 
         fileObject.nodes.forEach((node, nodeIndex) => {
           const posIndex = curNodeIndex++;
           const position = conflictGridType.positions[posIndex];
-          nodePositions.push({ row: position[0] -1, col: position[1] - 1});
+          nodesIndex.push(nodeIndex);
 
           gridRef.current!.setCellElement(position[0] - 1, position[1] - 1,
-            <div style={{
+            <div
+              key={`${fileObject.fileName}-${nodeIndex}`}
+              ref={el => nodeRefs.current[fileIndex][nodeIndex] = el} 
+              style={{
               position: "relative",
               left: padding,
               top: padding,
@@ -63,33 +71,94 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
             </div>
           );
         });
+        
+        // const fileCells: JSX.Element[] = [];
+        // nodesIndex.forEach((idx) => {
+        //   for (let row = 0; row < cells.length; row++) {
+        //     for (let col = 0; col < cells[row].length; col++) {
+        //       const cell = cells[row][col];
+        //       // Verifica se o cell contém um CodeNode com nodeIndex igual ao idx
+        //       if (
+        //         cell &&
+        //         cell.props &&
+        //         cell.props.children &&
+        //         cell.props.children.type === CodeNode &&
+        //         cell.props.children.key === `${fileObject.fileName}-${idx}`
+        //       ) {
+        //         fileCells.push(cell);
+        //       }
+        //     }
+        //   }
+        // });
 
-        if (nodePositions.length > 0) {
-          const minRow = Math.min(...nodePositions.map(pos => pos.row));
-          const maxRow = Math.max(...nodePositions.map(pos => pos.row));
-          const minCol = Math.min(...nodePositions.map(pos => pos.col));
-          const maxCol = Math.max(...nodePositions.map(pos => pos.col));
-
-          const width = (maxCol - minCol + 1) * fileWidth;
-          const height = (maxRow - minRow + 1) * fileHeight;
-
-          contours.push({
-            key: `file-contour-${fileObject.fileName}`,
-            file: fileObject,
-            width,
-            height,
-            minRow,
-            minCol
-          })
+          // contours.push({
+          //   key: `file-contour-${fileObject.fileName}`,
+          //   file: fileObject,
+          //   width,
+          //   height,
+          //   minRow,
+          //   minCol
+          // })
         }
-      });
+      );
 
-      setFileContours(contours);
+      // setFileContours(contours);
     }
   }, [data, conflictGridType]);
+
+  useEffect(() => {
+  // Aguarde a renderização dos nodes
+  console.log("stop one");
+  setTimeout(() => {
+    const contours: typeof fileContours = [];
+    const gridContainer = document.querySelector('#grid-container');
+    const gridRect = gridContainer?.getBoundingClientRect();
+    if (!gridRect) return;
+    // Agrupe refs por fileObject se necessário
+    // Exemplo para todos nodes:
+    console.log("stop two");
+    data.forEach((fileObject, fileIndex) => {
+        console.log("stop three");     
+        const rects = (nodeRefs.current[fileIndex] ?? [])
+        .filter(Boolean)
+        .map(el => el!.getBoundingClientRect());
+        console.log("rects", rects);
+
+      if (rects.length > 0) {
+        const minLeft = Math.min(...rects.map(r => r.left));
+        const minTop = Math.min(...rects.map(r => r.top));
+        const maxRight = Math.max(...rects.map(r => r.right));
+        const maxBottom = Math.max(...rects.map(r => r.bottom));
+
+        const minX = Math.min(...rects.map(r => r.x));
+        const minY = Math.min(...rects.map(r => r.y));
+
+        const width = maxRight - minLeft;
+        const height = maxBottom - minTop;
+
+        const left = minX - gridRect.x;
+        const top = minY - gridRect.y;
+        console.log("width, height", width, height);
+
+        // Adicione ao contours
+        contours.push({
+          key: `file-contour-${fileObject.fileName}`,
+          file: fileObject,
+          width,
+          height,
+          left,
+          top
+        });
+
+        setFileContours([...contours]);
+  }
+});
+  }, 0);
+}, [data, conflictGridType]);
   // pegar tamanho da coluna e subtrair do tamanho do node e somar com um padding
   // file com position relative e node com position absolute
   return conflictGridType ? (
+    console.log("Rendering GraphView with data:", data),
     <div style={{ position: "relative" }}>
       {/* Renderize os contornos dos arquivos */}
       {fileContours.map(contour => (
@@ -97,15 +166,15 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
           key={contour.key}
           style={{
             position: "absolute",
-            left: contour.minCol * fileWidth + contour.minCol * fileSpacing,
-            top: contour.minRow * fileHeight,
+            left: contour.left - 6,
+            top: contour.top - padding,
             zIndex: 0
           }}
         >
           <FileComponent
             file={contour.file}
-            width={contour.width}
-            height={contour.height}
+            width={contour.width - 3 * padding}
+            height={contour.height + 2.3 * padding}
           />
         </div>
       ))}

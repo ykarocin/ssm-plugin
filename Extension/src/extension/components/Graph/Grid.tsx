@@ -10,6 +10,7 @@ export type layout = {
 export type gridRef = {
   setCellElement: (row: number, column: number, element: JSX.Element) => void;
   setLayout: (layout: layout) => void;
+  getCells: () => Array<Array<JSX.Element>>;
 };
 
 interface GridProps {
@@ -47,10 +48,16 @@ const Grid = forwardRef<gridRef, GridProps>(({ width, height, layout }, ref): JS
     setGridLayout(newLayout);
   };  
 
+  // method to return the cells
+  const getCells = () => {
+    return cells;
+  }
+
   // Expose the grid methods to the parent component
   useImperativeHandle(ref, () => ({
     setCellElement,
-    setLayout
+    setLayout,
+    getCells
   }));
 
   useEffect(() => {
@@ -88,6 +95,7 @@ const Grid = forwardRef<gridRef, GridProps>(({ width, height, layout }, ref): JS
 
   return (
     <div
+      id= "grid-container"
       style={{
         height: "300px",
         display: "grid",
