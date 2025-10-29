@@ -91,6 +91,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     dep = updateLocationFromStackTrace(dep, { inplace: false, mode: "deep" });
 
     const { L: LC, R: RC } = extractNodesFromDependency(dep);
+    console.log("Extracted LC and RC from dependency:", { LC, RC });
 
     // If the nodes are equal, update from the stack trace
     if (getClassFromJavaFilename(L.fileName) === getClassFromJavaFilename(LC.fileName) && L.numberHighlight === LC.numberHighlight) {
@@ -111,7 +112,6 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     }
 
     if (getClassFromJavaFilename(R.fileName) === getClassFromJavaFilename(RC.fileName) && R.numberHighlight === RC.numberHighlight) {
-      
       R.fileName = ensureJavaExtension(dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? R.fileName);
 
       if (dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.line){
@@ -143,11 +143,35 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     //   rColor = "#1E90FF"; //azul
     // }
 
-    console.log("Left Node:", L);
-    console.log("Right Node:", R);
-    console.log("Left Call Node:", LC);
-    console.log("Right Call Node:", RC);
+    const normalizePath = (p?: string) =>
+      p ? p.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "") : p;
+
+    const unifyFileNames = (...nodes: Array<Node | undefined>) => {
+      const ns = nodes.filter(Boolean) as Node[];
+      ns.forEach((n) => {
+        n.fileName = normalizePath(n.fileName) ?? n.fileName;
+      });
+
+      for (let i = 0; i < ns.length; i++) {
+        for (let j = 0; j < ns.length; j++) {
+          if (i === j) continue;
+          const a = ns[i].fileName;
+          const b = ns[j].fileName;
+          if (!a || !b || a === b) continue;
+
+          // se um contém o outro, atribui o menor (mais curto) ao maior
+          if (a.includes(b) && b.length < a.length) {
+            ns[i].fileName = b;
+          } else if (b.includes(a) && a.length < b.length) {
+            ns[j].fileName = a;
+          }
+        }
+      }
+    };
+
+    unifyFileNames(L, R, LC, RC);
     // Dividing the nodes into files
+    console.log("Updating graph with nodes:", { L, R, LC, RC });
     const newGraphData = Grouping_nodes(dep, L, R, LC, RC);
 
     // identifying the graph type

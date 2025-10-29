@@ -30,17 +30,33 @@ const Grouping_nodes = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node) =
     const fileMap: Map<string, Node[]> = new Map();
 
     const addNodeToFile = (node: Node) => {
+      console.log("Checking the node fileNames: ", node.fileName);
       if (!fileMap.has(node.fileName)) {
         fileMap.set(node.fileName, []);
       }
       const fileNodes = fileMap.get(node.fileName)!;
 
       if (!fileNodes.some((n) => n.numberHighlight === node.numberHighlight)) {
+        if (node == L){
+          node.role = "L";
+        } else if ( node == R){
+          node.role = "R";
+        } else if ( node == LC){
+          node.role = "LC";
+        } else if (node == RC){
+          node.role = "RC";
+        }
         fileNodes.push(node);
       }
     };
 
     [L, R, LC, RC].forEach(addNodeToFile);
+
+    console.log("Checking the state of graph before the sort: ", [...graph]);
+    for (const [fileName, nodes] of fileMap.entries()) {
+      graph.push({ fileName, nodes });
+    }
+    
     // sort nodes by line
     graph.forEach(file => {
       file.nodes.sort((a, b) => {
@@ -48,9 +64,7 @@ const Grouping_nodes = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node) =
       });
     });
 
-    for (const [fileName, nodes] of fileMap.entries()) {
-      graph.push({ fileName, nodes });
-    }
+    console.log("Checking the state of graph after the sort: ", [...graph]);
 
     return graph;
   }

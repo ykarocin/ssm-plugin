@@ -1,9 +1,11 @@
 import { useRef, useEffect, useState } from "react";
 import Grid, { gridRef } from "./Grid";
 import { FileObject } from "../grouping";
-import { CodeNode } from "./Node";
+import { CodeNode, CodeNodeProps } from "./Node";
 import { layout } from "./Grid";
 import { FileComponent } from "./File";
+import { getArrows } from "./arrowLayout";
+import { Arrow } from "./arrowLayout";
 
 export type ConflictGridType = {
   layout: layout;
@@ -17,17 +19,12 @@ interface GraphViewProps {
 
 export default function GraphView({ data, conflictGridType }: GraphViewProps) {
   const gridRef = useRef<gridRef>(null);
-  const fileWidth = 420;
-  const fileHeight = 155;
   const padding = 32;
-  const fileSpacing = 140;
 
   const [fileContours, setFileContours] = useState<
     { key: string; file: FileObject; width: number; height: number, left: number, top: number }[]
   >([]);
-
-  const contours: typeof fileContours = [];
-  const cells = gridRef.current?.getCells() ?? [];
+  const [arrows, setArrows] = useState<Arrow[]>([]);
 
   const nodeRefs = useRef<Array<Array<HTMLDivElement | null>>>([]);
 
@@ -36,10 +33,12 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
       gridRef.current.setLayout(conflictGridType.layout);
 
       let curNodeIndex = 0;
+      nodeRefs.current = [];
 
       data.forEach((fileObject, fileIndex) => {
         const nodesIndex: number[] = [];
         nodeRefs.current[fileIndex] = [];
+        console.log("Checking file content: ",fileObject.nodes);
 
         fileObject.nodes.forEach((node, nodeIndex) => {
           const posIndex = curNodeIndex++;
@@ -71,96 +70,84 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
             </div>
           );
         });
-        
-        // const fileCells: JSX.Element[] = [];
-        // nodesIndex.forEach((idx) => {
-        //   for (let row = 0; row < cells.length; row++) {
-        //     for (let col = 0; col < cells[row].length; col++) {
-        //       const cell = cells[row][col];
-        //       // Verifica se o cell contém um CodeNode com nodeIndex igual ao idx
-        //       if (
-        //         cell &&
-        //         cell.props &&
-        //         cell.props.children &&
-        //         cell.props.children.type === CodeNode &&
-        //         cell.props.children.key === `${fileObject.fileName}-${idx}`
-        //       ) {
-        //         fileCells.push(cell);
-        //       }
-        //     }
-        //   }
-        // });
+        });
 
-          // contours.push({
-          //   key: `file-contour-${fileObject.fileName}`,
-          //   file: fileObject,
-          //   width,
-          //   height,
-          //   minRow,
-          //   minCol
-          // })
-        }
-      );
+        setTimeout(() => {
+          const contours: typeof fileContours = [];
+          const gridContainer = document.querySelector('#grid-container');
+          const gridRect = gridContainer?.getBoundingClientRect();
+          
+          if (!gridRect) return;
+          data.forEach((fileObject, fileIndex) => {
+              const rects = (nodeRefs.current[fileIndex] ?? [])
+              .filter(Boolean)
+              .map(el => el!.getBoundingClientRect());
 
-      // setFileContours(contours);
+            if (rects.length > 0) {
+              const minLeft = Math.min(...rects.map(r => r.left));
+              const minTop = Math.min(...rects.map(r => r.top));
+              const maxRight = Math.max(...rects.map(r => r.right));
+              const maxBottom = Math.max(...rects.map(r => r.bottom));
+
+              const minX = Math.min(...rects.map(r => r.x));
+              const minY = Math.min(...rects.map(r => r.y));
+
+              let width = maxRight - minLeft;
+              const height = maxBottom - minTop;
+
+              const left = minX - gridRect.x;
+              const top = minY - gridRect.y;
+              console.log("width, height", width, height);
+
+              if ( width < 363) {
+                width = 363 + 4 * padding;
+              }
+
+              contours.push({
+                key: `file-contour-${fileObject.fileName}`,
+                file: fileObject,
+                width,
+                height,
+                left,
+                top
+              });
+            }
+          });
+          setFileContours(contours);
+
+          const nodeCoords: { [role: string]: { x: number; y: number; idx: number; node: CodeNodeProps } } = {};
+          data.forEach((fileObject, fileIndex) => {
+            fileObject.nodes.forEach((node, nodeIndex) => {
+              const el = nodeRefs.current[fileIndex][nodeIndex];
+              if (el && node.role) {
+                const rect = el.getBoundingClientRect();
+                nodeCoords[node.role] = {
+                  x: rect.x,
+                  y: rect.y,
+                  idx: nodeIndex,
+                  node: node
+                };
+              }
+            })
+          })
+          console.log("nodeCoords: ", nodeCoords);
+          const newArrows = getArrows(nodeCoords, gridRect);
+          console.log(" gridRect:", gridRect);
+          setArrows(newArrows);
+  }, 0);
     }
   }, [data, conflictGridType]);
 
-  useEffect(() => {
-  // Aguarde a renderização dos nodes
-  console.log("stop one");
-  setTimeout(() => {
-    const contours: typeof fileContours = [];
-    const gridContainer = document.querySelector('#grid-container');
-    const gridRect = gridContainer?.getBoundingClientRect();
-    if (!gridRect) return;
-    // Agrupe refs por fileObject se necessário
-    // Exemplo para todos nodes:
-    console.log("stop two");
-    data.forEach((fileObject, fileIndex) => {
-        console.log("stop three");     
-        const rects = (nodeRefs.current[fileIndex] ?? [])
-        .filter(Boolean)
-        .map(el => el!.getBoundingClientRect());
-        console.log("rects", rects);
-
-      if (rects.length > 0) {
-        const minLeft = Math.min(...rects.map(r => r.left));
-        const minTop = Math.min(...rects.map(r => r.top));
-        const maxRight = Math.max(...rects.map(r => r.right));
-        const maxBottom = Math.max(...rects.map(r => r.bottom));
-
-        const minX = Math.min(...rects.map(r => r.x));
-        const minY = Math.min(...rects.map(r => r.y));
-
-        const width = maxRight - minLeft;
-        const height = maxBottom - minTop;
-
-        const left = minX - gridRect.x;
-        const top = minY - gridRect.y;
-        console.log("width, height", width, height);
-
-        // Adicione ao contours
-        contours.push({
-          key: `file-contour-${fileObject.fileName}`,
-          file: fileObject,
-          width,
-          height,
-          left,
-          top
-        });
-
-        setFileContours([...contours]);
+  if (arrows){
+    console.log("Arrows:", arrows);
   }
-});
-  }, 0);
-}, [data, conflictGridType]);
-  // pegar tamanho da coluna e subtrair do tamanho do node e somar com um padding
-  // file com position relative e node com position absolute
+
+  const gridContainer = document.querySelector('#grid-container');
+  const gridRect = gridContainer?.getBoundingClientRect();
+  console.log("gridRect: ", gridRect);
+
   return conflictGridType ? (
-    console.log("Rendering GraphView with data:", data),
     <div style={{ position: "relative" }}>
-      {/* Renderize os contornos dos arquivos */}
       {fileContours.map(contour => (
         <div
           key={contour.key}
@@ -178,8 +165,44 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
           />
         </div>
       ))}
-      {/* Renderize o grid normalmente */}
       <Grid width={300} height={100} layout={conflictGridType.layout} ref={gridRef} />
+      <svg
+        width={gridRect?.width ?? 0}
+        height={gridRect?.height ?? 0}
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          pointerEvents: "none",
+          zIndex: 2
+        }}
+      >
+        <defs>
+          <marker
+            id="arrowhead"
+            markerWidth="10"
+            markerHeight="7"
+            refX="5"
+            refY="3.5"
+            orient="auto"
+            viewBox="0 0 10 7"
+          >
+            <polygon points="0 0, 10 3.5, 0 7" fill="#ff9800" />
+          </marker>
+        </defs>
+        {arrows?.map((arrow, i) => (
+          <line
+            key={i}
+            x1={arrow.from.x1}
+            y1={arrow.from.y1}
+            x2={arrow.to.x2}
+            y2={arrow.to.y2}
+            stroke="#ff9800"
+            strokeWidth={3}
+            markerEnd="url(#arrowhead)"
+          />
+        ))}
+      </svg>
     </div>
   ) : null;
 }

@@ -13,6 +13,7 @@ interface CodeNodeProps {
   isSink?: boolean;
   isDashed?: boolean;
   style?: CSSProperties;
+  role?: string;
 }
 
 export class Node {
@@ -24,6 +25,7 @@ export class Node {
   isSource: boolean;
   isSink: boolean;
   isDashed: boolean;
+  role?: string;
 
   constructor(
     fileName: string,
@@ -33,7 +35,8 @@ export class Node {
     isCall = false,
     isSource: boolean = false,
     isSink: boolean = false,
-    isDashed: boolean = false
+    isDashed: boolean = false,
+    role: string = ""
   ) {
     this.fileName = fileName;
     this.lines = lines;
@@ -43,15 +46,12 @@ export class Node {
     this.isSource = isSource;
     this.isSink = isSink;
     this.isDashed = isDashed;
-  }
-
-  getWidth() {
-    return this.isSource || this.isSink ? 290 : 363;
+    this.role = role;
   }
 
   getHeight(lineHeight: number) {
     const padding = 40;
-    return this.lines.length * lineHeight + padding;
+    return 3 * lineHeight + padding;
   }
 }
 
@@ -64,7 +64,8 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
   isSource = false,
   isSink = false,
   isDashed,
-  style
+  style,
+  role
 }) => {
   const isSpecial = isCall || isSink;
 
@@ -219,3 +220,21 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
     </svg>
   );
 };
+
+export type { CodeNodeProps };
+
+export function getWidth(isSource: boolean) {
+    if (isSource){
+      return 290;
+    } else {
+      return 363;
+    }
+  }
+
+export function getHeight(isSpecial: boolean) {
+  if (isSpecial){
+    return 41;
+  } else {
+    return 112;
+  }
+}
