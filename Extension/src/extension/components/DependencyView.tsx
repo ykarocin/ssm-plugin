@@ -91,7 +91,6 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     dep = updateLocationFromStackTrace(dep, { inplace: false, mode: "deep" });
 
     const { L: LC, R: RC } = extractNodesFromDependency(dep);
-    console.log("Extracted LC and RC from dependency:", { LC, RC });
 
     // If the nodes are equal, update from the stack trace
     if (getClassFromJavaFilename(L.fileName) === getClassFromJavaFilename(LC.fileName) && L.numberHighlight === LC.numberHighlight) {
