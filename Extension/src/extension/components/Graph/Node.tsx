@@ -129,7 +129,6 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
         />
       )}
 
-
       {/* Code Lines */}
       {lines.map((line, i) => {
         const y = startY + i * lineHeight;
