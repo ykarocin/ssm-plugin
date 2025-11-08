@@ -54,6 +54,8 @@ const Grouping_nodes = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node) =
     for (const [fileName, nodes] of fileMap.entries()) {
       graph.push({ fileName, nodes });
     }
+
+    console.log("nodes: ", graph);
     
     // sort nodes by line
     graph.forEach(file => {
