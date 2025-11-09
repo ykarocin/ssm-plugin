@@ -38,7 +38,6 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
       data.forEach((fileObject, fileIndex) => {
         const nodesIndex: number[] = [];
         nodeRefs.current[fileIndex] = [];
-        console.log("Checking file content: ",fileObject.nodes);
 
         fileObject.nodes.forEach((node, nodeIndex) => {
           const posIndex = curNodeIndex++;
@@ -97,7 +96,6 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
 
               const left = minX - gridRect.x;
               const top = minY - gridRect.y;
-              console.log("width, height", width, height);
 
               if ( width < 363) {
                 width = 363 + 4 * padding;
@@ -130,21 +128,14 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
               }
             })
           })
-          console.log("nodeCoords: ", nodeCoords);
           const newArrows = getArrows(nodeCoords, gridRect);
-          console.log(" gridRect:", gridRect);
           setArrows(newArrows);
   }, 0);
     }
   }, [data, conflictGridType]);
 
-  if (arrows){
-    console.log("Arrows:", arrows);
-  }
-
   const gridContainer = document.querySelector('#grid-container');
   const gridRect = gridContainer?.getBoundingClientRect();
-  console.log("gridRect: ", gridRect);
 
   return conflictGridType ? (
     <div style={{ position: "relative" }}>

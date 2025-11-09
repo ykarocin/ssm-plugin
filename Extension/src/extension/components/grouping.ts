@@ -30,7 +30,6 @@ const Grouping_nodes = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node) =
     const fileMap: Map<string, Node[]> = new Map();
 
     const addNodeToFile = (node: Node) => {
-      console.log("Checking the node fileNames: ", node.fileName);
       if (!fileMap.has(node.fileName)) {
         fileMap.set(node.fileName, []);
       }
@@ -52,10 +51,11 @@ const Grouping_nodes = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node) =
 
     [L, R, LC, RC].forEach(addNodeToFile);
 
-    console.log("Checking the state of graph before the sort: ", [...graph]);
     for (const [fileName, nodes] of fileMap.entries()) {
       graph.push({ fileName, nodes });
     }
+
+    console.log("nodes: ", graph);
     
     // sort nodes by line
     graph.forEach(file => {
@@ -63,8 +63,6 @@ const Grouping_nodes = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node) =
         return a.numberHighlight - b.numberHighlight;
       });
     });
-
-    console.log("Checking the state of graph after the sort: ", [...graph]);
 
     return graph;
   }
