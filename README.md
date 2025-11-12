@@ -8,19 +8,19 @@ This project is licensed under the [Creative Commons Attribution 4.0 Internation
 
 - [Usage](#usage)
 - [Installation](#installation)
-  - [Extension](#extension)
+  - [Setup Environment Variables](#setup-environment-variables)
   - [Github App and Database Server](#github-app-and-database-server)
     - [Install with Docker](#install-with-docker)
     - [Install Manually](#install-manually)
-      - [Setup Environment Variables](#setup-environment-variables)
       - [GithubApp](#githubapp)
       - [DBServer](#dbserver)
+  - [Extension](#extension)
 
 # Usage
 
-1. [Install the extension in your browser.](#extension)
-2. [Install the Github app in your Github repository.](#githubapp)
-3. [Run both the DBServer and the GithubApp.](#githubapp-and-database-server)
+1. [Install the Github app in your Github repository.](#githubapp)
+2. [Install the extension in your browser.](#extension)
+3. [Run both the DBServer and the GithubApp.](#github-app-and-database-server)
 4. Open a Pull Request in your Github repository.
 5. Click on the 'dependencies' button in the Pull Request page.
 6. Now you can see the dependencies of the Pull Request in a list.
@@ -31,18 +31,64 @@ This project is licensed under the [Creative Commons Attribution 4.0 Internation
 To install each component, first clone the repository:
 
 ```bash
-git clone https://github.com/Vinicius-resende-cin/ssm-plugin.git
-cd ssm-plugin
+git clone https://github.com/Vinicius-resende-cin/InView.git
+cd InView
 ```
 
 After that, you can install the extension, the Github app, and the database server.
 
-## Extension
+## Setup Environment Variables
 
-First, build the extension:
+Before installing the components, you need to set up the environment variables for each one of them:
+
+1. Create a `.env` file in both the `GithubApp` and `DBServer` folders.
+2. Add the required environment variables to each `.env` file as specified in the .env.example files located in each folder.
+    * For the `GithubApp` either set up a GitHub App in your GitHub account and obtain the necessary credentials (App ID, Private Key, Webhook Secret, etc.), or use a existing GitHub App's credentials.
+3. Lastly, create a `.env` file in the Extension folder and add a `SERVER_URL` variable pointing to your DBServer instance (e.g., `http://localhost:4000`).
+
+## Github App and Database Server
+
+The Github app and the database server are two components that work together to provide the functionality of the SSM plugin. The Github app is responsible for receiving webhooks from Github and sending them to the database server, which stores the data and provides it to the extension.
+
+### Install with Docker
+
+To install the Github app and the database server in one line with Docker, you can use the following command (make sure to setup each component's environment variables in a `.env` file first - see the [Setup Environment Variables](#setup-environment-variables) section):
 
 ```bash
-cd Extension
+docker compose up --build
+```
+
+### Install Manually
+
+To install the Github app and the database server manually, you can follow these steps:
+
+#### GithubApp
+
+Go to the `GithubApp` folder and run the following command to build and run the app:
+
+```bash
+# on the GithubApp folder
+npm install
+npm run build
+npm start
+```
+
+#### DBServer
+
+Go to the `DBServer` folder and run the following command to build and run the server:
+
+```bash
+# on the DBServer folder
+npm install
+npm run build
+npm start
+```
+
+## Extension
+
+Lastly, build the extension:
+
+```bash
 # on the Extension folder
 npm run build
 ```
@@ -55,47 +101,3 @@ Then, follow the official instructions in the [Chrome documentation](https://dev
 2. Enable "Developer mode" in the top right corner.
 3. Click on "Load unpacked" and select the `Extension/dist` folder in the cloned repository.
 4. The extension should now be installed and ready to use.
-
-## Github App and Database Server
-
-The Github app and the database server are two components that work together to provide the functionality of the SSM plugin. The Github app is responsible for receiving webhooks from Github and sending them to the database server, which stores the data and provides it to the extension.
-
-### Install with Docker
-
-To install the Github app and the database server in one line with Docker, you can use the following command:
-
-```bash
-docker compose up --build
-```
-
-### Install Manually
-
-To install the Github app and the database server manually, you can follow these steps:
-
-#### Setup Environment Variables
-
-_Section in development_
-
-#### GithubApp
-
-Go to the `GithubApp` folder and run the following command to build and run the app:
-
-```bash
-cd GithubApp
-# on the GithubApp folder
-npm install
-npm run build
-npm start
-```
-
-#### DBServer
-
-Go to the `DBServer` folder and run the following command to build and run the server:
-
-```bash
-cd DBServer
-# on the DBServer folder
-npm install
-npm run build
-npm start
-```
