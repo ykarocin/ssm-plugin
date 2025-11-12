@@ -25,15 +25,17 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
     { key: string; file: FileObject; width: number; height: number, left: number, top: number }[]
   >([]);
   const [arrows, setArrows] = useState<Arrow[]>([]);
+  const [gridRect, setGridRect] = useState<DOMRect | null>(null);
 
   const nodeRefs = useRef<Array<Array<HTMLDivElement | null>>>([]);
 
   useEffect(() => {
+    console.log("GraphView useEffect fired with:", { data, conflictGridType });
     if (gridRef.current && conflictGridType) {
+      nodeRefs.current = [];
       gridRef.current.setLayout(conflictGridType.layout);
 
       let curNodeIndex = 0;
-      nodeRefs.current = [];
 
       data.forEach((fileObject, fileIndex) => {
         const nodesIndex: number[] = [];
@@ -43,7 +45,7 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
           const posIndex = curNodeIndex++;
           const position = conflictGridType.positions[posIndex];
           nodesIndex.push(nodeIndex);
-
+          console.log("checking gridRef: ", gridRef.current);
           gridRef.current!.setCellElement(position[0] - 1, position[1] - 1,
             <div
               key={`${fileObject.fileName}-${nodeIndex}`}
@@ -73,15 +75,22 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
 
         setTimeout(() => {
           const contours: typeof fileContours = [];
-          const gridContainer = document.querySelector('#grid-container');
-          const gridRect = gridContainer?.getBoundingClientRect();
-          
-          if (!gridRect) return;
+          const gridContainer = (gridRef.current as any)?.containerRef?.current;
+          console.log("checking gridContainer:", gridContainer);
+          const newGridRect = gridContainer?.getBoundingClientRect();
+          console.log("checking newGridRect:", newGridRect);
+          if (!newGridRect){
+            console.error("Could not get gridRect from gridRef.current.containerRef");
+            return;
+          }
+          setGridRect(newGridRect);
+
           data.forEach((fileObject, fileIndex) => {
               const rects = (nodeRefs.current[fileIndex] ?? [])
               .filter(Boolean)
               .map(el => el!.getBoundingClientRect());
 
+            console.log("checking nodeRefs:", nodeRefs);
             if (rects.length > 0) {
               const minLeft = Math.min(...rects.map(r => r.left));
               const minTop = Math.min(...rects.map(r => r.top));
@@ -94,8 +103,8 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
               let width = maxRight - minLeft;
               const height = maxBottom - minTop;
 
-              const left = minX - gridRect.x;
-              const top = minY - gridRect.y;
+              const left = minX - newGridRect.x;
+              const top = minY - newGridRect.y;
 
               if ( width < 363) {
                 width = 363 + 4 * padding;
@@ -111,6 +120,8 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
               });
             }
           });
+          console.log("the contours: ", contours);
+          console.log("checking fileContours: ", fileContours);
           setFileContours(contours);
 
           const nodeCoords: { [role: string]: { x: number; y: number; idx: number; node: CodeNodeProps } } = {};
@@ -118,6 +129,7 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
             fileObject.nodes.forEach((node, nodeIndex) => {
               const el = nodeRefs.current[fileIndex][nodeIndex];
               if (el && node.role) {
+                console.log("checking els", el);
                 const rect = el.getBoundingClientRect();
                 nodeCoords[node.role] = {
                   x: rect.x,
@@ -128,14 +140,12 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
               }
             })
           })
-          const newArrows = getArrows(nodeCoords, gridRect);
+          const newArrows = getArrows(nodeCoords, newGridRect);
           setArrows(newArrows);
+          console.log("After calculations:", { contours, arrows, fileContours });
   }, 0);
     }
   }, [data, conflictGridType]);
-
-  const gridContainer = document.querySelector('#grid-container');
-  const gridRect = gridContainer?.getBoundingClientRect();
 
   return conflictGridType ? (
     <div style={{ position: "relative" }}>
@@ -156,7 +166,13 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
           />
         </div>
       ))}
-      <Grid width={300} height={100} layout={conflictGridType.layout} ref={gridRef} />
+      <Grid 
+        key={`grid-${conflictGridType.layout.rows}-${conflictGridType.layout.columns}`} 
+        width={300} 
+        height={100} 
+        layout={conflictGridType.layout} 
+        ref={gridRef} 
+      />
       <svg
         width={gridRect?.width ?? 0}
         height={gridRect?.height ?? 0}
