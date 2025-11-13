@@ -21,6 +21,7 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
   const gridRef = useRef<gridRef>(null);
   const padding = 32;
 
+  const [gridKey, setGridKey] = useState(0);
   const [fileContours, setFileContours] = useState<
     { key: string; file: FileObject; width: number; height: number, left: number, top: number }[]
   >([]);
@@ -28,9 +29,14 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
   const [gridRect, setGridRect] = useState<DOMRect | null>(null);
 
   const nodeRefs = useRef<Array<Array<HTMLDivElement | null>>>([]);
+  useEffect(() => {
+  setGridKey(prev => prev + 1);
+  nodeRefs.current = [];
+  setFileContours([]);
+  setArrows([]);
+}, [conflictGridType]);
 
   useEffect(() => {
-    console.log("GraphView useEffect fired with:", { data, conflictGridType });
     if (gridRef.current && conflictGridType) {
       nodeRefs.current = [];
       gridRef.current.setLayout(conflictGridType.layout);
@@ -45,107 +51,94 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
           const posIndex = curNodeIndex++;
           const position = conflictGridType.positions[posIndex];
           nodesIndex.push(nodeIndex);
-          console.log("checking gridRef: ", gridRef.current);
           gridRef.current!.setCellElement(position[0] - 1, position[1] - 1,
             <div
               key={`${fileObject.fileName}-${nodeIndex}`}
-              ref={el => nodeRefs.current[fileIndex][nodeIndex] = el} 
+              ref={el => nodeRefs.current[fileIndex][nodeIndex] = el}
               style={{
-              position: "relative",
-              left: padding,
-              top: padding,
-              width: `calc(100% - ${padding * 2}px)`,
-              height: `calc(100% - ${padding * 2}px)`
-            }}>
-            <CodeNode
-              key={`${fileObject.fileName}-${nodeIndex}`}
-              fileName={node.fileName}
-              lines={node.lines}
-              numberHighlight={node.numberHighlight}
-              calledFile={node.calledFile}
-              isCall={node.isCall}
-              isSource={node.isSource}
-              isSink={node.isSink}
-              isDashed={node.isDashed}
-            />
+                position: "relative",
+                left: padding,
+                top: padding,
+                width: `calc(100% - ${padding * 2}px)`,
+                height: `calc(100% - ${padding * 2}px)`
+              }}>
+              <CodeNode
+                fileName={node.fileName}
+                lines={node.lines}
+                numberHighlight={node.numberHighlight}
+                calledFile={node.calledFile}
+                isCall={node.isCall}
+                isSource={node.isSource}
+                isSink={node.isSink}
+                isDashed={node.isDashed}
+              />
             </div>
           );
         });
-        });
+      });
 
-        setTimeout(() => {
-          const contours: typeof fileContours = [];
-          const gridContainer = (gridRef.current as any)?.containerRef?.current;
-          console.log("checking gridContainer:", gridContainer);
-          const newGridRect = gridContainer?.getBoundingClientRect();
-          console.log("checking newGridRect:", newGridRect);
-          if (!newGridRect){
-            console.error("Could not get gridRect from gridRef.current.containerRef");
-            return;
-          }
-          setGridRect(newGridRect);
+      setTimeout(() => {
+        const contours: typeof fileContours = [];
+        const gridContainer = (gridRef.current as any)?.containerRef?.current;
+        const newGridRect = gridContainer?.getBoundingClientRect();
+        setGridRect(newGridRect);
 
-          data.forEach((fileObject, fileIndex) => {
-              const rects = (nodeRefs.current[fileIndex] ?? [])
-              .filter(Boolean)
-              .map(el => el!.getBoundingClientRect());
+        data.forEach((fileObject, fileIndex) => {
+          const rects = (nodeRefs.current[fileIndex] ?? [])
+            .filter(Boolean)
+            .map(el => el!.getBoundingClientRect());
 
-            console.log("checking nodeRefs:", nodeRefs);
-            if (rects.length > 0) {
-              const minLeft = Math.min(...rects.map(r => r.left));
-              const minTop = Math.min(...rects.map(r => r.top));
-              const maxRight = Math.max(...rects.map(r => r.right));
-              const maxBottom = Math.max(...rects.map(r => r.bottom));
+          if (rects.length > 0) {
+            const minLeft = Math.min(...rects.map(r => r.left));
+            const minTop = Math.min(...rects.map(r => r.top));
+            const maxRight = Math.max(...rects.map(r => r.right));
+            const maxBottom = Math.max(...rects.map(r => r.bottom));
 
-              const minX = Math.min(...rects.map(r => r.x));
-              const minY = Math.min(...rects.map(r => r.y));
+            const minX = Math.min(...rects.map(r => r.x));
+            const minY = Math.min(...rects.map(r => r.y));
 
-              let width = maxRight - minLeft;
-              const height = maxBottom - minTop;
+            let width = maxRight - minLeft;
+            const height = maxBottom - minTop;
 
-              const left = minX - newGridRect.x;
-              const top = minY - newGridRect.y;
+            const left = minX - newGridRect.x;
+            const top = minY - newGridRect.y;
 
-              if ( width < 363) {
-                width = 363 + 4 * padding;
-              }
-
-              contours.push({
-                key: `file-contour-${fileObject.fileName}`,
-                file: fileObject,
-                width,
-                height,
-                left,
-                top
-              });
+            if (width < 363) {
+              width = 363 + 4 * padding;
             }
-          });
-          console.log("the contours: ", contours);
-          console.log("checking fileContours: ", fileContours);
-          setFileContours(contours);
 
-          const nodeCoords: { [role: string]: { x: number; y: number; idx: number; node: CodeNodeProps } } = {};
-          data.forEach((fileObject, fileIndex) => {
-            fileObject.nodes.forEach((node, nodeIndex) => {
-              const el = nodeRefs.current[fileIndex][nodeIndex];
-              if (el && node.role) {
-                console.log("checking els", el);
-                const rect = el.getBoundingClientRect();
-                nodeCoords[node.role] = {
-                  x: rect.x,
-                  y: rect.y,
-                  idx: nodeIndex,
-                  node: node
-                };
-              }
-            })
+            contours.push({
+              key: `file-contour-${fileObject.fileName}`,
+              file: fileObject,
+              width,
+              height,
+              left,
+              top
+            });
+          }
+        });
+        setFileContours(contours);
+
+        const nodeCoords: { [role: string]: { x: number; y: number; idx: number; node: CodeNodeProps } } = {};
+        data.forEach((fileObject, fileIndex) => {
+          fileObject.nodes.forEach((node, nodeIndex) => {
+            const el = nodeRefs.current[fileIndex][nodeIndex];
+            if (el && node.role) {
+              const rect = el.getBoundingClientRect();
+              nodeCoords[node.role] = {
+                x: rect.x,
+                y: rect.y,
+                idx: nodeIndex,
+                node: node
+              };
+            }
           })
-          const newArrows = getArrows(nodeCoords, newGridRect);
-          setArrows(newArrows);
-          console.log("After calculations:", { contours, arrows, fileContours });
-  }, 0);
+        })
+        const newArrows = getArrows(nodeCoords, newGridRect);
+        setArrows(newArrows);
+      }, 0);
     }
-  }, [data, conflictGridType]);
+  }, [data, conflictGridType, gridKey]);
 
   return conflictGridType ? (
     <div style={{ position: "relative" }}>
@@ -166,12 +159,12 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
           />
         </div>
       ))}
-      <Grid 
-        key={`grid-${conflictGridType.layout.rows}-${conflictGridType.layout.columns}`} 
-        width={300} 
-        height={100} 
-        layout={conflictGridType.layout} 
-        ref={gridRef} 
+      <Grid
+        key={gridKey}
+        width={300}
+        height={100}
+        layout={conflictGridType.layout}
+        ref={gridRef}
       />
       <svg
         width={gridRect?.width ?? 0}
