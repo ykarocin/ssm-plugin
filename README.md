@@ -90,6 +90,7 @@ Lastly, build the extension:
 
 ```bash
 # on the Extension folder
+npm install
 npm run build
 ```
 
