@@ -103,28 +103,21 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
           
           if (!gridRect) return;
           data.forEach((fileObject, fileIndex) => {
-              const rects = (nodeRefs.current[fileIndex] ?? [])
+            const rects = (nodeRefs.current[fileIndex] ?? [])
               .filter(Boolean)
-              .map(el => el!.getBoundingClientRect());
+              .map(el => el!.querySelector("svg")!.getBoundingClientRect());
 
             if (rects.length > 0) {
-              const minLeft = Math.min(...rects.map(r => r.left));
-              const minTop = Math.min(...rects.map(r => r.top));
-              const maxRight = Math.max(...rects.map(r => r.right));
-              const maxBottom = Math.max(...rects.map(r => r.bottom));
-
               const minX = Math.min(...rects.map(r => r.x));
+              const maxX = Math.max(...rects.map(r => r.x + r.width));
               const minY = Math.min(...rects.map(r => r.y));
+              const maxY = Math.max(...rects.map(r => r.y + r.height));
 
-              let width = maxRight - minLeft;
-              const height = maxBottom - minTop;
+              let width = maxX - minX;
+              const height = maxY - minY;
 
               const left = minX - gridRect.x;
               const top = minY - gridRect.y;
-
-              if ( width < 363) {
-                width = 363 + 4 * padding;
-              }
 
               contours.push({
                 key: `file-contour-${fileObject.fileName}`,
@@ -176,8 +169,8 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
         >
           <FileComponent
             file={contour.file}
-            width={contour.width - 3 * padding}
-            height={contour.height + 2.3 * padding}
+            width={contour.width + padding}
+            height={contour.height + 2 * padding}
           />
         </div>
       ))}
