@@ -72,6 +72,7 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
   const isSpecial = isCall || isSink;
 
   const width = isSpecial ? 50 : 60;
+  const minWidth = isSpecial ? 350 : 380;
   const lineCharLimit = 50;
   const lineSpacing = isSpecial ? 4 : 6;
   const baseFontSize = isSpecial ? 12 : 14;
@@ -103,7 +104,7 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
   };
 
   return (
-    <svg width={`${width}%`} height={lines.length * lineHeight + 4 * padding} xmlns="http://www.w3.org/2000/svg" overflow={"hidden"} style={{ ...style, position: "relative" }}>
+    <svg width={`max(${minWidth}px, ${width}%)`} height={lines.length * lineHeight + 4 * padding} xmlns="http://www.w3.org/2000/svg" overflow={"hidden"} style={{ ...style, position: "relative" }}>
       {/* Background */}
       <rect
         x="0"
