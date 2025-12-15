@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import Grid, { gridRef } from "./Grid";
 import { FileObject } from "../grouping";
 import { CodeNode, CodeNodeProps } from "./Node";
@@ -18,6 +18,7 @@ interface GraphViewProps {
 }
 
 export default function GraphView({ data, conflictGridType }: GraphViewProps) {
+  const gridKey = useMemo(() => `${JSON.stringify(data)}-${JSON.stringify(conflictGridType)}`, [data, conflictGridType]);
   const gridRef = useRef<gridRef>(null);
   const padding = 32;
 
@@ -31,6 +32,9 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
   useEffect(() => {
     if (gridRef.current && conflictGridType) {
       gridRef.current.setLayout(conflictGridType.layout);
+
+      setFileContours([]);
+      setArrows([]);
 
       let curNodeIndex = 0;
       nodeRefs.current = [];
@@ -156,7 +160,7 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
           />
         </div>
       ))}
-      <Grid width={300} height={100} layout={conflictGridType.layout} ref={gridRef} />
+      <Grid key={gridKey} width={300} height={100} layout={conflictGridType.layout} ref={gridRef} />
       <svg
         width={gridRect?.width ?? 0}
         height={gridRect?.height ?? 0}
