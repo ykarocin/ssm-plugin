@@ -28,6 +28,7 @@ async function getSettings(owner: string, repository: string, pull_number: numbe
 type GraphData = {
   files: FileObject[];
   graphType: ConflictGridType;
+  dependencyType?: string;
 }
 
 interface DependencyViewProps {
@@ -179,7 +180,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
 
     // set the new graph data
     if (!newGraphData || !graphType) setGraphData(null);
-    else setGraphData({ files: newGraphData, graphType });
+    else setGraphData({ files: newGraphData, graphType, dependencyType: dep.type });
   };
 
   const changeActiveConflict = (dep: dependency) => {
@@ -315,7 +316,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
 
             {diff ? (
               <div id="content-container" className="tw-w-full">
-                {graphData && <GraphView data={graphData.files} conflictGridType={graphData.graphType} />}
+                {graphData && <GraphView data={graphData.files} conflictGridType={graphData.graphType} dependencyType={graphData.dependencyType} />}
                 <DiffView diff={diff} modifiedLines={modifiedLines} filesFromBase={filesFromBase} />
               </div>
             ) : (

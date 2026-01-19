@@ -7,7 +7,7 @@ type FileObject = {
   nodes: Node[];
 };
 
-const ConflictGridTypeDF: { [key: string]: ConflictGridType } = {
+const ConflictGridTypeLayouts: { [key: string]: ConflictGridType } = {
   A1: { layout: { rows: 2, columns: 3 }, positions: [[1, 2], [2, 2]] },
   A2: { layout: { rows: 2, columns: 3 }, positions: [[1, 2], [2, 2]] },
   B2: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [2, 1], [2, 2]] },
@@ -36,13 +36,13 @@ const Grouping_nodes = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node) =
       const fileNodes = fileMap.get(node.fileName)!;
 
       if (!fileNodes.some((n) => n.numberHighlight === node.numberHighlight)) {
-        if (node == L){
+        if (node === L){
           node.role = "L";
-        } else if ( node == R){
+        } else if ( node === R){
           node.role = "R";
-        } else if ( node == LC){
+        } else if ( node === LC){
           node.role = "LC";
-        } else if (node == RC){
+        } else if (node === RC){
           node.role = "RC";
         }
         fileNodes.push(node);
@@ -80,8 +80,8 @@ const getGraphType = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node): Co
   const isLCdifferent = LC.fileName !== Lfile || LC.numberHighlight !== L.numberHighlight;
   const isRCdifferent = RC.fileName !== Rfile || RC.numberHighlight !== R.numberHighlight;
 
-  // DF conflict
-  if (dep.type.startsWith("CONFLICT")) {
+  // DF and OA conflicts use the same layout logic
+  if (dep.type.startsWith("CONFLICT") || dep.type.startsWith("OA")) {
     // L and R are different - must check LC and RC
     if (areLRdifferent) {
       // 4 nodes
@@ -95,7 +95,7 @@ const getGraphType = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node): Co
           Rfile !== RCfile &&
           LCfile !== RCfile
         ) {
-          return ConflictGridTypeDF.A4;
+          return ConflictGridTypeLayouts.A4;
         }
         // L and R in different files A and B, LC and RC in same file C
         else if (
@@ -106,7 +106,7 @@ const getGraphType = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node): Co
           Rfile !== RCfile &&
           LCfile === RCfile
         ) {
-          return ConflictGridTypeDF.C3;
+          return ConflictGridTypeLayouts.C3;
         }
         // L and R in same file A, LC and RC in different files B and C
         else if (
@@ -115,7 +115,7 @@ const getGraphType = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node): Co
           Lfile !== RCfile &&
           LCfile !== RCfile
         ) {
-          return ConflictGridTypeDF.D3;
+          return ConflictGridTypeLayouts.D3;
         }
         // L and R in same file A, LC and RC in same file B
         else if (
@@ -124,7 +124,7 @@ const getGraphType = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node): Co
           Lfile !== RCfile &&
           LCfile === RCfile
         ) {
-          return ConflictGridTypeDF.F2;
+          return ConflictGridTypeLayouts.F2;
         }
       }
       // 3 nodes (LC)
@@ -135,14 +135,14 @@ const getGraphType = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node): Co
           Lfile !== LCfile &&
           Rfile !== LCfile
         ) {
-          return ConflictGridTypeDF.A3;
+          return ConflictGridTypeLayouts.A3;
         }
         // L and R in same file A, LC in different file B
         else if (
           Lfile === Rfile &&
           Lfile !== LCfile
         ) {
-          return ConflictGridTypeDF.B2;
+          return ConflictGridTypeLayouts.B2;
         }
         // L in file A, R and LC in same file B
         else if (
@@ -150,7 +150,7 @@ const getGraphType = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node): Co
           Lfile !== LCfile &&
           Rfile === LCfile
         ) {
-          return ConflictGridTypeDF.D2;
+          return ConflictGridTypeLayouts.D2;
         }
       }
       // 3 nodes (RC)
@@ -161,14 +161,14 @@ const getGraphType = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node): Co
           Lfile !== RCfile &&
           Rfile !== RCfile
         ) {
-          return ConflictGridTypeDF.B3;
+          return ConflictGridTypeLayouts.B3;
         }
         // L and R in same file A, RC in different file B
         else if (
           Lfile === Rfile &&
           Lfile !== RCfile
         ) {
-          return ConflictGridTypeDF.C2;
+          return ConflictGridTypeLayouts.C2;
         }
         // R in file A, L and RC in same file B
         else if (
@@ -176,18 +176,18 @@ const getGraphType = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node): Co
           Lfile !== RCfile &&
           Rfile === RCfile
         ) {
-          return ConflictGridTypeDF.E2;
+          return ConflictGridTypeLayouts.E2;
         }
       }
       // 2 nodes
       else {
         // L and R in same file A
         if (Lfile === Rfile) {
-          return ConflictGridTypeDF.A1;
+          return ConflictGridTypeLayouts.A1;
         }
         // L and R in different files A and B
         else {
-          return ConflictGridTypeDF.A2;
+          return ConflictGridTypeLayouts.A2;
         }
       }
     }
@@ -199,14 +199,14 @@ const getGraphType = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node): Co
         Lfile !== RCfile &&
         LCfile !== RCfile
       ) {
-        return ConflictGridTypeDF.A3;
+        return ConflictGridTypeLayouts.A3;
       }
       // L and RC in same file A, LC in different file B
       else if (
         Lfile === RCfile &&
         Lfile !== LCfile
       ) {
-        return ConflictGridTypeDF.B2;
+        return ConflictGridTypeLayouts.B2;
       }
       // L in file A, LC and RC in same file B
       else if (
@@ -214,11 +214,10 @@ const getGraphType = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node): Co
         Lfile !== RCfile &&
         LCfile === RCfile
       ) {
-        return ConflictGridTypeDF.D2;
+        return ConflictGridTypeLayouts.D2;
       }
     }
-    // DF default
-    return ConflictGridTypeDF.default;
+    return ConflictGridTypeLayouts.default;
   }
   
   return null;

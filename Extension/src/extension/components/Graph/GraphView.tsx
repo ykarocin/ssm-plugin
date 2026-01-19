@@ -7,6 +7,7 @@ import { FileComponent } from "./File";
 import { getArrows } from "./arrowLayout";
 import { Arrow } from "./arrowLayout";
 import { getDiffLine } from "../Diff/diff-navigation";
+import { EdgeRenderer } from "./EdgeRenderer";
 
 const NodeColor = {
   LEFT: { main: "#B7007E", alt: "#950067" },
@@ -22,9 +23,10 @@ export type ConflictGridType = {
 interface GraphViewProps {
   data: FileObject[];
   conflictGridType: ConflictGridType;
+  dependencyType?: string;
 }
 
-export default function GraphView({ data, conflictGridType }: GraphViewProps) {
+export default function GraphView({ data, conflictGridType, dependencyType }: GraphViewProps) {
   const gridRef = useRef<gridRef>(null);
   const padding = 32;
 
@@ -146,11 +148,11 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
               }
             })
           })
-          const newArrows = getArrows(nodeCoords, gridRect);
+          const newArrows = getArrows(nodeCoords, gridRect, dependencyType);
           setArrows(newArrows);
   }, 0);
     }
-  }, [data, conflictGridType]);
+  }, [data, conflictGridType, dependencyType]);
 
   const gridContainer = document.querySelector('#grid-container');
   const gridRect = gridContainer?.getBoundingClientRect();
@@ -175,43 +177,7 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
         </div>
       ))}
       <Grid width={300} height={100} layout={conflictGridType.layout} ref={gridRef} />
-      <svg
-        width={gridRect?.width ?? 0}
-        height={gridRect?.height ?? 0}
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          pointerEvents: "none",
-          zIndex: 2
-        }}
-      >
-        <defs>
-          <marker
-            id="arrowhead"
-            markerWidth="10"
-            markerHeight="7"
-            refX="5"
-            refY="3.5"
-            orient="auto"
-            viewBox="0 0 10 7"
-          >
-            <polygon points="0 0, 10 3.5, 0 7" fill="#ff9800" />
-          </marker>
-        </defs>
-        {arrows?.map((arrow, i) => (
-          <line
-            key={i}
-            x1={arrow.from.x1}
-            y1={arrow.from.y1}
-            x2={arrow.to.x2}
-            y2={arrow.to.y2}
-            stroke="#ff9800"
-            strokeWidth={3}
-            markerEnd="url(#arrowhead)"
-          />
-        ))}
-      </svg>
+      <EdgeRenderer arrows={arrows} gridRect={gridRect} />
     </div>
   ) : null;
 }
