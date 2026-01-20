@@ -67,7 +67,15 @@ const insertVariableInformation = (nodes: any[], edges: any[], variables: { left
   return { nodes, edges };
 };
 
-const cfGraphDataFiveNodes = (L: lineData, R: lineData, LC: lineData, RC: lineData, CF: lineData, lColor: string, rColor: string) => {
+const cfGraphDataFiveNodes = (
+  L: lineData,
+  R: lineData,
+  LC: lineData,
+  RC: lineData,
+  CF: lineData,
+  lColor: string,
+  rColor: string
+) => {
   const nodes = [
     {
       key: "0",
@@ -259,15 +267,15 @@ const cfGraphDataThreeNodes = (L: lineData, R: lineData, CF: lineData, lColor: s
       }
     },
     {
-        source: "1",
-        target: "2",
-        attributes: {
-          color: EDGE_COLOR_CF,
-          size: EDGE_SIZE,
-          type: "arrow",
-          label: "CF"
-        }
+      source: "1",
+      target: "2",
+      attributes: {
+        color: EDGE_COLOR_CF,
+        size: EDGE_SIZE,
+        type: "arrow",
+        label: "CF"
       }
+    }
   ];
 
   return { nodes, edges };
