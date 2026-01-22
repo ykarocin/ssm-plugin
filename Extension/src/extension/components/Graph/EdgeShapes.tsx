@@ -53,44 +53,22 @@ function CallEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
  */
 function OAEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
   const colors = getEdgeColors("OA");
+  const offset = 16;
 
   // Calcular ângulo e comprimento da seta
   const dx = x2 - x1;
-  const dy = y2 - y1;
-  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+  const dy = y2 - y1; 
+  // +90, pois seta svg já aponta para baixo
+  const angle = Math.atan2(-dy, dx) * (180 / Math.PI) + 90; // dy invertido devido ao sistema de coordenadas SVG
   const length = Math.sqrt(dx * dx + dy * dy);
 
-  // Tamanho da ponta da seta
-  const arrowHeadLength = 15;
-  const arrowHeadWidth = 12;
-  const bodyWidth = 5;
-
   return (
-    <g transform={`translate(${x1}, ${y1}) rotate(${angle})`}>
-      {/* Corpo da seta (retângulo com bordas arredondadas) */}
-      <rect
-        x="0"
-        y={-bodyWidth / 2}
-        width={length - bodyWidth}
-        height={bodyWidth}
-        rx={bodyWidth / 2}
-        ry={bodyWidth / 2}
-        fill={colors.primary}
-        stroke={colors.primary}
-        strokeWidth="0.5"
-      />
-      {/* Ponta da seta em formato V (outline, não preenchida) */}
-      <path
-        d={`M ${length - arrowHeadLength} ${-arrowHeadWidth / 2} 
-            L ${length} 0 
-            L ${length - arrowHeadLength} ${arrowHeadWidth / 2}`}
-        fill="none"
-        stroke={colors.primary}
-        strokeWidth="5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </g>
+    <g transform={`
+      translate(${x1 - offset}, ${y1 + offset})
+      `}> <path d="M36.5002 0C30.9773 0 26.5002 4.47716 26.5002 10V61.4237L17.4458 51.3246C13.759 47.2124 7.43679 46.8676 3.32464 50.5543C-0.787502 54.2411 -1.13235 60.5633 2.5544 64.6755L27.0653 92.0145C31.8343 97.3338 40.1659 97.3338 44.9349 92.0145L69.4458 64.6755C73.1325 60.5633 72.7877 54.2411 68.6755 50.5543C64.5634 46.8676 58.2411 47.2124 54.5544 51.3246L46.5002 60.3081V10C46.5002 4.47715 42.023 0 36.5002 0Z" 
+      fill={colors.primary} 
+      fillRule="evenodd" 
+      clipRule="evenodd" /> </g>
   );
 }
 

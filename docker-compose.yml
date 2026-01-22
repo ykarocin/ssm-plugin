@@ -21,7 +21,7 @@ services:
     environment:
       - ANALYSIS_API=http://dbserver:4000/analysis
       - REPOS_API=http://dbserver:4000/repos
-      - SETTINGS_API=http://dbserver:4000
+      - SETTINGS_API=http://dbserver:4000/settings
     networks:
       - app-network
 
