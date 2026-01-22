@@ -60,11 +60,10 @@ function OAEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
   const dy = y2 - y1; 
   // +90, pois seta svg já aponta para baixo
   const angle = Math.atan2(-dy, dx) * (180 / Math.PI) + 90; // dy invertido devido ao sistema de coordenadas SVG
-  const length = Math.sqrt(dx * dx + dy * dy);
 
   return (
     <g transform={`
-      translate(${x1 - offset}, ${y1 + offset})
+      translate(${x1 - offset}, ${y1 + offset}) rotate(${angle})
       `}> <path d="M36.5002 0C30.9773 0 26.5002 4.47716 26.5002 10V61.4237L17.4458 51.3246C13.759 47.2124 7.43679 46.8676 3.32464 50.5543C-0.787502 54.2411 -1.13235 60.5633 2.5544 64.6755L27.0653 92.0145C31.8343 97.3338 40.1659 97.3338 44.9349 92.0145L69.4458 64.6755C73.1325 60.5633 72.7877 54.2411 68.6755 50.5543C64.5634 46.8676 58.2411 47.2124 54.5544 51.3246L46.5002 60.3081V10C46.5002 4.47715 42.023 0 36.5002 0Z" 
       fill={colors.primary} 
       fillRule="evenodd" 
@@ -77,53 +76,68 @@ function OAEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
  */
 function DFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
   const colors = getEdgeColors("DF");
+  const topOffset = 18;
+  const bottomOffset = 28;
 
   // Calcular ângulo e comprimento
   const dx = x2 - x1;
   const dy = y2 - y1;
-  const angle = Math.atan2(dy, dx) * (180 / Math.PI) - 90;
-  const length = Math.sqrt(dx * dx + dy * dy);
+  const angle = Math.atan2(-dy, dx) * (180 / Math.PI) + 90;
+  const length = Math.sqrt(dx * dx + dy * dy) - topOffset - bottomOffset;
 
-  const borderRadius = 1;
+  const borderRadius = 2;
 
-  const stepHeight = 2;
-  const stepSpacing = 2 * stepHeight;
-  const arrowLength = 18;
-  const arrowWidth = 16;
-  const arrowHeadLength = 14;
+  const stepHeight = 4;
+  const stepSpacing = 3 * stepHeight;
+  const arrowLength = 36;
+  const arrowWidth = 32;
+  const arrowHeadLength = 28;
   const stepAreaLength = length - arrowLength - stepSpacing;
-  const numSteps = Math.max(2, Math.floor(stepAreaLength / (stepHeight + stepSpacing)));
   const stepWidth = arrowWidth;
   const stepOffsetX = (length - stepWidth) / 2;
 
   return (
-    <g transform={`translate(${x1}, ${y1}) rotate(${angle})`}>
+    <g transform={`translate(${x1 - arrowWidth}, ${y1 + topOffset}) rotate(${angle})`}>
       {/* Degraus do fluxo de dados */}
       {(() => {
+        const steps = [];
         let currentY = 0;
-        let lastStepHeight = 0;
+        let stepIndex = 0;
+        let previousHeight = 0;
         
-        return Array.from({ length: numSteps + 1 }).map((_, i) => {
+        while (currentY < stepAreaLength) {
           // Aumentar a altura gradativamente conforme aproxima da ponta
-          const progressiveHeight = stepHeight + 2 * i
+          const progressiveHeight = stepHeight + 2 * stepIndex * stepHeight;
 
           // Diminuir o gap entre os degraus conforme aproxima da ponta
-          const progressiveGap = Math.max(1, stepSpacing - (i * (stepSpacing / numSteps)));
+          const progressiveGap = Math.max(2, stepSpacing - stepSpacing * stepIndex * 0.5);
+
+          const nextProgressiveGap = Math.max(2, stepSpacing - stepSpacing * (stepIndex + 1) * 0.5);
+
+          // Calcular espaço restante
+          const spaceRemaining = stepAreaLength - currentY - nextProgressiveGap;
+          
+          // Verificar se é o último degrau
+          const isLastStep = progressiveHeight >= spaceRemaining;
+          
+          let finalHeight;
+          if (isLastStep && spaceRemaining < previousHeight) {
+            // Se o espaço restante for menor que o degrau anterior, preencher toda área
+            finalHeight = stepAreaLength - currentY + borderRadius * 2;
+          } else {
+            finalHeight = Math.min(progressiveHeight, spaceRemaining);
+          }
           
           // Usar Y acumulado da iteração anterior
           const y = currentY;
           
-          // Atualizar para próxima iteração
-          currentY += progressiveHeight + progressiveGap;
-          lastStepHeight = progressiveHeight;
-          
-          return (
+          steps.push(
             <rect
-              key={`step-${i}`}
+              key={`step-${stepIndex}`}
               x={stepOffsetX}
               y={y}
               width={stepWidth}
-              height={progressiveHeight}
+              height={finalHeight}
               rx={borderRadius}
               ry={borderRadius}
               fill={colors.primary}
@@ -132,7 +146,12 @@ function DFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
               strokeLinejoin="round"
             />
           );
-        });
+
+          previousHeight = finalHeight;
+          currentY += finalHeight + progressiveGap;
+          stepIndex++;
+        }
+        return steps;
       })()}
 
       {/* Seta completa com corpo e ponta */}
