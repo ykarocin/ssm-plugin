@@ -86,6 +86,7 @@ const insertNavTab = async () => {
         } else {
           // create a new tab
           const tab = document.createElement("a");
+          tab.setAttribute("role", "tab");
           tab.classList.add("tabnav-tab");
           tab.classList.add("flex-shrink-0");
           tab.href = DEPENDENCIES_URL;
@@ -93,7 +94,8 @@ const insertNavTab = async () => {
 
           // sends a message to the extension when clicked
           tab.addEventListener("click", async () => {
-            if (isAlreadyOnDependenciesUrl(window.location.href) && tab.classList.contains("selected")) return;
+            if (isAlreadyOnDependenciesUrl(window.location.href) && tab.classList.contains("selected"))
+              return;
             await gotoDependencies();
           });
 

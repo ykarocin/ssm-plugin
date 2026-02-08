@@ -142,6 +142,10 @@
   display: block;
 }
 
+.hidden {
+  display: none !important;
+}
+
 @keyframes fadeInBorder {
   to {
     border-color: rgb(250 204 21) /* #facc15 */;
@@ -156,6 +160,10 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }

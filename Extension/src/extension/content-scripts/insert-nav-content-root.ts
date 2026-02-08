@@ -1,52 +1,174 @@
 const DEPENDENCIES_URL = `#dependencies`;
+const dependenciesContentRootId = "dependencies-content-root";
 
-// get the turbo-frame element
-const turboFrame = document.querySelector("turbo-frame#repo-content-turbo-frame");
-if (turboFrame === null) throw new Error("turbo-frame not found");
+const toggleOuterContainerSize = (expand: boolean) => {
+  const outerContainer = document.querySelector("div#diff-comparison-viewer-container");
+  if (outerContainer) {
+    outerContainer.classList.toggle("container-xl", expand);
+  }
+};
 
-// get the content container
-const contentContainer = turboFrame.querySelector("div.clearfix");
-if (contentContainer) {
-  // make the container the right size
-  contentContainer.className = "clearfix mt-4 px-3 px-md-4 px-lg-5";
-}
+const hideOldContent = () => {
+  //get the contents of the page
+  const contentWrapper = document.querySelector("div[class*='PageLayoutContent']");
+  if (!contentWrapper) throw new Error("old content not found");
 
-// get the nav element
-const nav = document.querySelector("[aria-label='Pull request tabs']");
-if (nav === null) throw new Error("nav not found");
+  // hide the content wrapper
+  contentWrapper.classList.add("hidden");
 
-// remove the selected class from the current selected tab
-const curSelected = nav.querySelector(".selected")!;
-curSelected.removeAttribute("aria-current");
-curSelected.classList.remove("selected");
+  const outerWrapper = contentWrapper.parentElement;
+  if (!outerWrapper) throw new Error("outer wrapper not found");
+  return outerWrapper;
+};
 
-// get the tab that was clicked
-const tab = nav.querySelector(`.tabnav-tab[href='${DEPENDENCIES_URL}']`);
-if (tab === null) throw new Error("tab not found");
+const hideOldContentChecksPage = (nav: Element) => {
+  // get the nav parent element
+  const navParent = nav.parentElement;
+  if (!navParent) throw new Error("nav parent not found");
 
-// add the selected class to the clicked tab
-tab.setAttribute("aria-current", "page");
-tab.classList.add("selected");
+  // hide all the next siblings of the nav element (the old content) that are not the dependencies content root
+  let sibling = navParent.nextElementSibling;
+  while (sibling) {
+    const nextSibling = sibling.nextElementSibling;
+    if (!sibling.id.includes(dependenciesContentRootId)) {
+      sibling.classList.add("hidden");
+    }
+    sibling = nextSibling;
+  }
 
-// get the nav parent
-const navParent = nav.parentElement!;
+  // return the nav grandparent element as the content wrapper
+  const outerWrapper = navParent.parentElement;
+  if (!outerWrapper) throw new Error("outer wrapper not found");
+  return outerWrapper;
+};
 
-//get and delete the div that follows the nav parent
-const oldContent = navParent.nextElementSibling!;
-oldContent.remove();
+const showContent = async (content: Element) => {
+  content.classList.remove("hidden");
 
-// insert a new div with the content
-const content = document.createElement("div");
-content.id = "dependencies-content-root";
-content.classList.add("pull-request-tab-content");
-content.classList.add("is-visible");
-content.innerHTML = `<h1>New tab works!</h1>`;
-navParent.insertAdjacentElement("afterend", content);
-
-// send a message to the background script to
-(async () => {
-  const response = await chrome.runtime.sendMessage({ message: "dependencies-root-ready" });
+  // send a message to the background script
+  const response = await chrome.runtime.sendMessage({ message: "dependencies-root-visible" });
   console.log(response);
+};
+
+const createContentRoot = async (nav: Element, outerWrapper: Element) => {
+  // add an event listener to each tab that hides the content when clicked
+  const tabs = nav.querySelectorAll("a[role='tab']") as NodeListOf<HTMLAnchorElement>;
+  tabs.forEach((tab) => {
+    if (tab.textContent === "Dependencies") return;
+    tab.addEventListener("click", () => {
+      // adjust the outer container size if changing to main pr page or commits page
+      if (!tab.href.includes("/checks") && !tab.href.includes("/changes")) {
+        toggleOuterContainerSize(true);
+      }
+
+      // show the old content
+      const curHidden = document.querySelectorAll(`.hidden`);
+      curHidden.forEach((el) => el.classList.remove("hidden"));
+
+      // hide the dependencies content
+      const dependenciesContent = document.querySelector(`#${dependenciesContentRootId}`);
+      if (dependenciesContent) {
+        dependenciesContent.classList.add("hidden");
+      }
+
+      // remove the selected class from the dependencies tab
+      const dependenciesTab = nav.querySelector(`.tabnav-tab[href='${DEPENDENCIES_URL}']`);
+      if (dependenciesTab) {
+        dependenciesTab.removeAttribute("aria-selected");
+        dependenciesTab.classList.remove("selected");
+      }
+
+      // add the selected class to the clicked tab
+      tab.setAttribute("aria-selected", "true");
+      const selectedClassName = tab.getAttribute("selected-class-name");
+      if (selectedClassName) {
+        tab.classList.add(selectedClassName);
+      }
+      tab.classList.add("selected");
+    });
+  });
+
+  // insert a new div with the new content
+  const content = document.createElement("div");
+  content.id = dependenciesContentRootId;
+  content.classList.add("tw-w-full");
+  content.classList.add("pull-request-tab-content");
+  content.classList.add("is-visible");
+  content.innerHTML = ``;
+  outerWrapper.appendChild(content);
+
+  // send a message to the background script
+  const response = await chrome.runtime.sendMessage({ message: "dependencies-root-created" });
+  console.log(response);
+};
+
+const prepareDependenciesTab = async () => {
+  // get the content container and make it the right size
+  let contentContainer = document.querySelector("div#diff-comparison-viewer-container");
+  if (contentContainer) {
+    toggleOuterContainerSize(false);
+  } else {
+    const turboFrame = document.querySelector("turbo-frame#repo-content-turbo-frame");
+    let contentContainer = turboFrame?.querySelector("div.clearfix");
+    if (!contentContainer) throw new Error("content container not found");
+    contentContainer.className = "clearfix mt-4 px-3 px-md-4 px-lg-5";
+  }
+
+  // get the nav element
+  let nav = document.querySelector("[aria-label='Pull request tabs']");
+  let navTabs = nav;
+  if (!nav) {
+    nav = document.querySelector("[aria-label='Pull request navigation tabs']");
+    navTabs = nav?.firstElementChild ?? null;
+  }
+  if (!nav || !navTabs) throw new Error("nav not found");
+
+  // remove the selected class from the current selected tab
+  let curSelected = nav.querySelector(".selected");
+  if (curSelected) {
+  } else {
+    curSelected = nav.querySelector("[aria-selected='true']");
+  }
+  if (!curSelected) throw new Error("selected tab not found");
+  curSelected.removeAttribute("aria-selected");
+  curSelected.classList.remove("selected");
+  // remove any class containing "TabNav-Selected"
+  curSelected.classList.forEach((cls) => {
+    if (cls.includes("TabNav-Selected")) {
+      curSelected!.classList.remove(cls);
+      curSelected!.setAttribute("selected-class-name", cls);
+    }
+  });
+
+  // get the tab that was clicked
+  const tab = nav.querySelector(`.tabnav-tab[href='${DEPENDENCIES_URL}']`);
+  if (tab === null) throw new Error("tab not found");
+
+  // add the selected class to the clicked tab
+  tab.setAttribute("aria-selected", "true");
+  tab.classList.add("selected");
+
+  // hide the old content and get the wrapper element
+  let outerWrapper: Element;
+  if (window.location.href.includes("/checks")) {
+    outerWrapper = hideOldContentChecksPage(nav);
+  } else {
+    outerWrapper = hideOldContent();
+  }
+
+  // create the content root if it doesn't exist, otherwise show it
+  const existingContent = document.querySelector(`#${dependenciesContentRootId}`);
+  if (existingContent) {
+    await showContent(existingContent);
+  } else {
+    await createContentRoot(nav, outerWrapper);
+  }
+};
+
+(async () => {
+  if (window.location.href.includes(DEPENDENCIES_URL)) {
+    await prepareDependenciesTab();
+  }
 })();
 
 export {};
