@@ -10,7 +10,8 @@ const toggleOuterContainerSize = (expand: boolean) => {
 
 const hideOldContent = () => {
   //get the contents of the page
-  const contentWrapper = document.querySelector("div[class*='PageLayoutContent']");
+  const contentWrapper = document.querySelector("div[class*='PageLayoutContent']")
+    ?? document.querySelector("div[class*='pull-request-tab-content']");
   if (!contentWrapper) throw new Error("old content not found");
 
   // hide the content wrapper
