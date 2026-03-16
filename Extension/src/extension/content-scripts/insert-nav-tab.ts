@@ -89,6 +89,7 @@ const insertNavTab = async () => {
           tab.setAttribute("role", "tab");
           tab.classList.add("tabnav-tab");
           tab.classList.add("flex-shrink-0");
+          tab.classList.add("dependencies-tab");
           tab.href = DEPENDENCIES_URL;
           tab.innerHTML = "Dependencies";
 

@@ -2,6 +2,24 @@
   position: relative; /* Define um referencial fixo para os elementos filhos */
 }
 
+.dependencies-tab {
+  background-color: #030F28 !important;
+  color: #fff !important;
+  border-bottom: 1px solid #3d444d !important;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.dependencies-tab[aria-selected="true"] {
+  border-bottom: none !important;
+}
+
+.pull-request-tab-content {
+  background-color: #030F28;
+  color: #fff;
+  padding: 1rem 2rem 1rem 2rem;
+}
+
 .dropdown-settings {
   position: absolute;
   min-width: fit-content;
