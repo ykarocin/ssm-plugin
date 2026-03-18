@@ -181,11 +181,7 @@ const insertButtonInCell = (
   classFileName: string
 ) => {
   const newTr = document.createElement("tr");
-  if (isDarkMode()){
-    newTr.classList.add("button-container-dark");
-  } else{
-    newTr.classList.add("button-container-light");
-  }
+  newTr.classList.add("button-container-dark");
   
 
   const newTd = document.createElement("td");
@@ -213,12 +209,8 @@ const insertButtonInCell = (
 };
 
 function createButton(position: "top" | "down", diffFile: HTMLElement, index: number, classFileName: string) {
-  const button = document.createElement("button");
-  if (isDarkMode()){    
-    button.classList.add("button-style-dark");
-  } else{
-    button.classList.add("button-style-light");
-  }
+  const button = document.createElement("button");   
+  button.classList.add("button-style-dark");
 
   if (position == "top") {
     button.innerHTML = "&#x25B2;";

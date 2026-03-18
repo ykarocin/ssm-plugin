@@ -2,6 +2,24 @@
   position: relative; /* Define um referencial fixo para os elementos filhos */
 }
 
+.dependencies-tab {
+  background-color: #030F28 !important;
+  color: #fff !important;
+  border-bottom: 1px solid #3d444d !important;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.dependencies-tab[aria-selected="true"] {
+  border-bottom: none !important;
+}
+
+.pull-request-tab-content {
+  background-color: #030F28;
+  color: #fff;
+  padding: 1rem 2rem 1rem 2rem;
+}
+
 .dropdown-settings {
   position: absolute;
   min-width: fit-content;
@@ -142,6 +160,10 @@
   display: block;
 }
 
+.hidden {
+  display: none !important;
+}
+
 @keyframes fadeInBorder {
   to {
     border-color: rgb(250 204 21) /* #facc15 */;
@@ -156,6 +178,10 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }

@@ -98,10 +98,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Insert the tab content root
     insertTabContentRoot(tabId);
     sendResponse({ message: "Navigating to dependencies tab" });
-  } else if (request.message === "dependencies-root-ready") {
+  } else if (request.message === "dependencies-root-created") {
     // Insert the content of the tab
     insertTabContent(tabId);
     sendResponse({ message: "Dependencies content inserted" });
+  } else if (request.message === "dependencies-root-visible") {
+    sendResponse({ message: "Dependencies content is visible" });
   } else {
     sendResponse({ message: "Invalid message" });
   }
