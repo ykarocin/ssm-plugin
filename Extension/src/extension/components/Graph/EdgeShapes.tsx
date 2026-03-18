@@ -16,34 +16,46 @@ interface EdgeShapeProps {
 function CallEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
   const colors = getEdgeColors("call");
   const markerId = "marker-call";
+  const strokeColor = colors.primary;
+
+  // Conector ortogonal em 90 graus: horizontal -> vertical -> horizontal
+  const midX = (x1 + x2) / 2;
+  const pathData = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
 
   return (
     <>
       <defs>
         <marker
           id={markerId}
-          markerWidth="10"
-          markerHeight="10"
-          refX="9"
-          refY="5"
+          markerWidth="8"
+          markerHeight="8"
+          refX="7"
+          refY="4"
           orient="auto"
           markerUnits="strokeWidth"
         >
           <path
-            d="M 0 0 L 10 5 L 0 10 z"
-            fill={colors.markerFill}
+            d="M 0 0 L 7 4 M 0 8 L 7 4"
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
         </marker>
       </defs>
-      <line
-        x1={x1}
-        y1={y1}
-        x2={x2}
-        y2={y2}
-        stroke={colors.primary}
-        strokeWidth={3}
+
+      <path
+        d={pathData}
+        stroke={strokeColor}
+        strokeWidth={1.8}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="miter"
         markerEnd={`url(#${markerId})`}
       />
+
+      <circle cx={x1} cy={y1} r={4.5} fill={strokeColor} />
     </>
   );
 }

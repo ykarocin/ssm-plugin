@@ -12,7 +12,7 @@ export function getEdgeColors(type?: ArrowType): EdgeColors {
   switch (baseType) {
     case "call":
       return {
-        primary: "#FF9800",
+        primary: "#FFF",
         markerFill: "#FF9800",
       };
 
