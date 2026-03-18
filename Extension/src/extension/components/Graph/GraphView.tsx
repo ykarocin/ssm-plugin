@@ -6,6 +6,14 @@ import { layout } from "./Grid";
 import { FileComponent } from "./File";
 import { getArrows } from "./arrowLayout";
 import { Arrow } from "./arrowLayout";
+import { getDiffLine } from "../Diff/diff-navigation";
+import { EdgeRenderer } from "./EdgeRenderer";
+
+const NodeColor = {
+  LEFT: { main: "#B7007E", alt: "#950067" },
+  RIGHT: { main: "#118900", alt: "#0C6200" },
+  BASE: { main: "#030F28", alt: "#142A38" },
+}
 
 export type ConflictGridType = {
   layout: layout;
@@ -15,9 +23,10 @@ export type ConflictGridType = {
 interface GraphViewProps {
   data: FileObject[];
   conflictGridType: ConflictGridType;
+  dependencyType?: string;
 }
 
-export default function GraphView({ data, conflictGridType }: GraphViewProps) {
+export default function GraphView({ data, conflictGridType, dependencyType }: GraphViewProps) {
   const gridKey = useMemo(() => `${JSON.stringify(data)}-${JSON.stringify(conflictGridType)}`, [data, conflictGridType]);
   const gridRef = useRef<gridRef>(null);
   const padding = 32;
@@ -53,6 +62,25 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
           const posIndex = curNodeIndex++;
           const position = conflictGridType.positions[posIndex];
           nodesIndex.push(nodeIndex);
+
+          let nodeColor: { main: string; alt: string } = NodeColor.BASE;
+          try {
+            console.log("Getting diff line for:", node.fileName, node.numberHighlight);
+            const diffLine = getDiffLine(node.fileName.endsWith(".java") ? node.fileName : `${node.fileName}.java`, node.numberHighlight);
+            if (diffLine) {
+              console.log("Diff line found:", diffLine);
+              const td = diffLine.querySelector("td") as HTMLTableCellElement;
+              const cls = td.classList;
+              if (cls.contains("d2h-ins-left") || cls.contains("d2h-del-left")) nodeColor = NodeColor.LEFT;
+              else if (cls.contains("d2h-ins") || cls.contains("d2h-del")) nodeColor = NodeColor.RIGHT;
+            } else {
+              console.warn("Diff line not found for:", node.fileName, node.numberHighlight);
+            }
+          } catch (e) {
+            // ignore if diff not rendered yet
+            console.warn("Diff line not found:", e);
+          }
+
           gridRef.current!.setCellElement(position[0] - 1, position[1] - 1,
             <div
               key={`${fileObject.fileName}-${nodeIndex}`}
@@ -65,6 +93,8 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
                 height: `calc(100% - ${padding * 2}px)`
               }}>
               <CodeNode
+                key={`${fileObject.fileName}-${nodeIndex}`}
+                nodeColor={nodeColor}
                 fileName={node.fileName}
                 lines={node.lines}
                 numberHighlight={node.numberHighlight}
@@ -88,7 +118,7 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
         data.forEach((fileObject, fileIndex) => {
           const rects = (nodeRefs.current[fileIndex] ?? [])
             .filter(Boolean)
-            .map(el => el!.getBoundingClientRect());
+            .map(el => el!.querySelector("svg")!.getBoundingClientRect());
 
           if (rects.length > 0) {
             const minLeft = Math.min(...rects.map(r => r.left));
@@ -97,10 +127,12 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
             const maxBottom = Math.max(...rects.map(r => r.bottom));
 
             const minX = Math.min(...rects.map(r => r.x));
+            const maxX = Math.max(...rects.map(r => r.x + r.width));
             const minY = Math.min(...rects.map(r => r.y));
+            const maxY = Math.max(...rects.map(r => r.y + r.height));
 
-            let width = maxRight - minLeft;
-            const height = maxBottom - minTop;
+              let width = maxX - minX;
+              const height = maxY - minY;
 
             const left = minX - newGridRect.x;
             const top = minY - newGridRect.y;
@@ -136,11 +168,11 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
             }
           })
         })
-        const newArrows = getArrows(nodeCoords, newGridRect);
+        const newArrows = getArrows(nodeCoords, newGridRect, dependencyType);
         setArrows(newArrows);
       }, 0);
     }
-  }, [data, conflictGridType, gridKey]);
+  }, [data, conflictGridType, dependencyType, gridKey]);
 
   return conflictGridType ? (
     <div style={{ position: "relative" }}>
@@ -156,49 +188,13 @@ export default function GraphView({ data, conflictGridType }: GraphViewProps) {
         >
           <FileComponent
             file={contour.file}
-            width={contour.width - 3 * padding}
-            height={contour.height + 2.3 * padding}
+            width={contour.width + padding}
+            height={contour.height + 2 * padding}
           />
         </div>
       ))}
       <Grid key={gridKey} width={300} height={100} layout={conflictGridType.layout} ref={gridRef} />
-      <svg
-        width={gridRect?.width ?? 0}
-        height={gridRect?.height ?? 0}
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          pointerEvents: "none",
-          zIndex: 2
-        }}
-      >
-        <defs>
-          <marker
-            id="arrowhead"
-            markerWidth="10"
-            markerHeight="7"
-            refX="5"
-            refY="3.5"
-            orient="auto"
-            viewBox="0 0 10 7"
-          >
-            <polygon points="0 0, 10 3.5, 0 7" fill="#ff9800" />
-          </marker>
-        </defs>
-        {arrows?.map((arrow, i) => (
-          <line
-            key={i}
-            x1={arrow.from.x1}
-            y1={arrow.from.y1}
-            x2={arrow.to.x2}
-            y2={arrow.to.y2}
-            stroke="#ff9800"
-            strokeWidth={3}
-            markerEnd="url(#arrowhead)"
-          />
-        ))}
-      </svg>
+      <EdgeRenderer arrows={arrows} gridRect={gridRect} />
     </div>
   ) : null;
 }
