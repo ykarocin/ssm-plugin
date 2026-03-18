@@ -1,7 +1,4 @@
 import { CodeNodeProps } from "./Node";
-import { getWidth, getHeight } from "./Node";
-
-const padding = 32;
 
 export type ArrowType = "call" | "OA" | "DF" | "CF";
 
@@ -13,7 +10,7 @@ export type Arrow = {
 
 // Função principal
 export function getArrows(
-  nodeCoords: { [role: string]: { x: number; y: number; idx: number; node: CodeNodeProps } },
+  nodeCoords: { [role: string]: { x: number; y: number; width: number; height: number; idx: number; node: CodeNodeProps } },
   gridRect: { x: number; y: number; width: number; height: number },
   dependencyType?: string
 ): Arrow[] {
@@ -56,108 +53,53 @@ function getArrowTypeFromDependency(dependencyType?: string): ArrowType {
 }
 
 
-const BuildArrow = (nodeL:{ x: number; y: number; idx: number; node: CodeNodeProps}, nodeR:{ x: number; y: number; idx: number; node: CodeNodeProps}, gridRect: { x: number; y: number; width: number; height: number }, type: ArrowType): Arrow => {
-  if (nodeL.x === nodeR.x){
-    // vertical arrow
-    return {
-      from: {
-        x1: nodeL.x + getWidth(nodeL.node.isSource || false)/2 + padding - gridRect.x,
-        y1: nodeL.y + getHeight(nodeL.node.isCall || nodeL.node.isSink || false) - gridRect.y
-      },
-      to: {
-        x2: nodeR.x + getWidth(nodeR.node.isSource || false)/2 + padding - gridRect.x,
-        y2: nodeR.y - gridRect.y
-      },
-      type
-    }
-  } else if (nodeL.y === nodeR.y) {
-    // horizontal arrows
-    if (nodeL.x < nodeR.x){
-      return {
-      from: {
-          x1: nodeL.x + getWidth(nodeL.node.isSource || false) + 2 * padding - gridRect.x,
-          y1: nodeL.y + getHeight(nodeL.node.isCall || nodeL.node.isSink || false)/2 - gridRect.y
-        },
-        to: {
-          x2: nodeR.x - gridRect.x,
-          y2: nodeR.y + getHeight(nodeR.node.isCall || nodeR.node.isSink || false)/2 - gridRect.y
-        },
-        type
-      }
+const BuildArrow = (
+  fromNode: { x: number; y: number; width: number; height: number; idx: number; node: CodeNodeProps },
+  toNode: { x: number; y: number; width: number; height: number; idx: number; node: CodeNodeProps },
+  gridRect: { x: number; y: number; width: number; height: number },
+  type: ArrowType
+): Arrow => {
+  const fromCenterX = fromNode.x + fromNode.width / 2;
+  const fromCenterY = fromNode.y + fromNode.height / 2;
+  const toCenterX = toNode.x + toNode.width / 2;
+  const toCenterY = toNode.y + toNode.height / 2;
+
+  const dx = toCenterX - fromCenterX;
+  const dy = toCenterY - fromCenterY;
+
+  let fromX = fromCenterX;
+  let fromY = fromCenterY;
+  let toX = toCenterX;
+  let toY = toCenterY;
+
+  // Conecta pelas bordas reais dos nós, priorizando o eixo predominante.
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    if (dx >= 0) {
+      fromX = fromNode.x + fromNode.width;
+      toX = toNode.x;
     } else {
-      return {
-      from: {
-          x1: nodeR.x + getWidth(nodeR.node.isSource || false) + 2 * padding - gridRect.x,
-          y1: nodeR.y + getHeight(nodeR.node.isCall || nodeR.node.isSink || false)/2 - gridRect.y
-        },
-        to: {
-          x2: nodeL.x - gridRect.x,
-          y2: nodeL.y + getHeight(nodeL.node.isCall || nodeL.node.isSink || false)/2 - gridRect.y
-        },
-        type
-      }
+      fromX = fromNode.x;
+      toX = toNode.x + toNode.width;
     }
   } else {
-    // diagonal arrows
-    ///0////1
-    ///2////3
-    if (nodeL.x < nodeR.x) {
-      if (nodeL.y < nodeR.y) {
-        // from position 0 to 3 
-        return {
-          from: {
-            x1: nodeL.x + getWidth(nodeL.node.isSource || false) + 2 * padding - gridRect.x,
-            y1: nodeL.y + getHeight(nodeL.node.isCall || nodeL.node.isSink || false)/2 - gridRect.y
-          },
-          to: {
-            x2: nodeR.x + getWidth(nodeR.node.isSource || false)/2 - gridRect.x,
-            y2: nodeR.y - padding - gridRect.y,
-          },
-          type
-        }
+    if (dy >= 0) {
+      fromY = fromNode.y + fromNode.height;
+      toY = toNode.y;
     } else {
-      // from position 2 to 1
-      return{
-        from: {
-          x1: nodeL.x + getWidth(nodeL.node.isSource || false) + 2 * padding - gridRect.x,
-          y1: nodeL.y + getHeight(nodeL.node.isCall || nodeL.node.isSink || false)/2 - gridRect.y
-        },
-        to: {
-          x2: nodeR.x + getWidth(nodeR.node.isCall || nodeR.node.isSink || false)/2 + padding - gridRect.x,
-          y2: nodeR.y + getHeight(nodeR.node.isCall || nodeR.node.isSink || false) - gridRect.y
-        },
-        type
-      }
-    }
-  } else {
-    if (nodeL.y < nodeR.y) {
-      // form position 1 to 2
-        return {
-            from: {
-            x1: nodeL.x + getWidth(nodeL.node.isCall || nodeL.node.isSink || false)/2 + padding - gridRect.x,
-            y1: nodeL.y + getHeight(nodeL.node.isCall || nodeL.node.isSink || false) - gridRect.y
-          },
-          to: {
-            x2: nodeR.x + getWidth(nodeR.node.isCall || nodeR.node.isSink || false)/2 + padding - gridRect.x,
-            y2: nodeR.y - gridRect.y
-          },
-          type
-        }
-    } else {
-      // from position 3 to 0
-      return{
-        from: {
-          x1: nodeL.x + getWidth(nodeL.node.isSource || false)/2 - gridRect.x,
-          y1: nodeL.y - padding - gridRect.y
-        },
-        to: {
-          x2: nodeR.x + getWidth(nodeR.node.isSource || false) + 2 * padding - gridRect.x,
-          y2: nodeR.y + getHeight(nodeR.node.isCall || nodeR.node.isSink || false)/2 - gridRect.y
-        },
-        type
-      }
+      fromY = fromNode.y;
+      toY = toNode.y + toNode.height;
     }
   }
 
-}
-}
+  return {
+    from: {
+      x1: fromX - gridRect.x,
+      y1: fromY - gridRect.y,
+    },
+    to: {
+      x2: toX - gridRect.x,
+      y2: toY - gridRect.y,
+    },
+    type,
+  };
+};

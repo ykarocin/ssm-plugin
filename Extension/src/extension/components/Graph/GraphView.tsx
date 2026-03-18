@@ -153,15 +153,20 @@ export default function GraphView({ data, conflictGridType, dependencyType }: Gr
         });
         setFileContours(contours);
 
-        const nodeCoords: { [role: string]: { x: number; y: number; idx: number; node: CodeNodeProps } } = {};
+        const nodeCoords: { [role: string]: { x: number; y: number; width: number; height: number; idx: number; node: CodeNodeProps } } = {};
         data.forEach((fileObject, fileIndex) => {
           fileObject.nodes.forEach((node, nodeIndex) => {
             const el = nodeRefs.current[fileIndex][nodeIndex];
             if (el && node.role) {
-              const rect = el.getBoundingClientRect();
+              const nodeSvg = el.querySelector("svg");
+              const rect = nodeSvg?.getBoundingClientRect();
+              if (!rect) return;
+
               nodeCoords[node.role] = {
                 x: rect.x,
                 y: rect.y,
+                width: rect.width,
+                height: rect.height,
                 idx: nodeIndex,
                 node: node
               };
