@@ -91,6 +91,22 @@ const BuildArrow = (
     }
   }
 
+  // Aplicar clearance para manter distância de contornos de arquivo
+  const clearanceMap = { call: 0, OA: 15, DF: 40, CF: 15 };
+  const clearance = clearanceMap[type] || 0;
+
+  if (clearance > 0) {
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance > 0) {
+      const ux = dx / distance;
+      const uy = dy / distance;
+      fromX += ux * clearance;
+      fromY += uy * clearance;
+      toX -= ux * clearance;
+      toY -= uy * clearance;
+    }
+  }
+
   return {
     from: {
       x1: fromX - gridRect.x,

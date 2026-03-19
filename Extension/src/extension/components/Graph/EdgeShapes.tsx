@@ -71,21 +71,24 @@ function CallEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
  */
 function OAEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
   const colors = getEdgeColors("OA");
-  const offset = 16;
-
-  // Calcular ângulo e comprimento da seta
   const dx = x2 - x1;
-  const dy = y2 - y1; 
-  // -90, pois seta svg já aponta para baixo e OA aponta no sentido contrário
-  const angle = Math.atan2(-dy, dx) * (180 / Math.PI) - 90; // dy invertido devido ao sistema de coordenadas SVG
+  const dy = y2 - y1;
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI) - 90;
+
+  // A ponta visual da OA no path original fica em (36.5002, 92.0145).
+  // Essa ponta é ancorada no ponto médio entre origem e destino para centralizar.
+  const midX = (x1 + x2) / 2;
+  const midY = (y1 + y2) / 2;
+  const tipX = 36.5002;
+  const tipY = 92.0145;
 
   return (
-    <g transform={`
-      translate(${x1 - offset}, ${y1 + offset}) rotate(${angle}) translate(-72, -96)
-      `}> <path d="M36.5002 0C30.9773 0 26.5002 4.47716 26.5002 10V61.4237L17.4458 51.3246C13.759 47.2124 7.43679 46.8676 3.32464 50.5543C-0.787502 54.2411 -1.13235 60.5633 2.5544 64.6755L27.0653 92.0145C31.8343 97.3338 40.1659 97.3338 44.9349 92.0145L69.4458 64.6755C73.1325 60.5633 72.7877 54.2411 68.6755 50.5543C64.5634 46.8676 58.2411 47.2124 54.5544 51.3246L46.5002 60.3081V10C46.5002 4.47715 42.023 0 36.5002 0Z" 
-      fill={colors.primary} 
-      fillRule="evenodd" 
-      clipRule="evenodd" /> </g>
+    <g transform={`translate(${midX}, ${midY}) rotate(${angle}) translate(${-tipX}, ${-tipY})`}>
+      <path d="M36.5002 0C30.9773 0 26.5002 4.47716 26.5002 10V61.4237L17.4458 51.3246C13.759 47.2124 7.43679 46.8676 3.32464 50.5543C-0.787502 54.2411 -1.13235 60.5633 2.5544 64.6755L27.0653 92.0145C31.8343 97.3338 40.1659 97.3338 44.9349 92.0145L69.4458 64.6755C73.1325 60.5633 72.7877 54.2411 68.6755 50.5543C64.5634 46.8676 58.2411 47.2124 54.5544 51.3246L46.5002 60.3081V10C46.5002 4.47715 42.023 0 36.5002 0Z"
+        fill={colors.primary}
+        fillRule="evenodd"
+        clipRule="evenodd" />
+    </g>
   );
 }
 
@@ -95,13 +98,12 @@ function OAEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
 function DFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
   const colors = getEdgeColors("DF");
   const topOffset = 18;
-  const bottomOffset = 28;
 
   // Calcular ângulo e comprimento
   const dx = x2 - x1;
   const dy = y2 - y1;
-  const angle = Math.atan2(-dy, dx) * (180 / Math.PI) + 90;
-  const length = Math.sqrt(dx * dx + dy * dy) - topOffset - bottomOffset;
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI) - 90;
+  const distance = Math.sqrt(dx * dx + dy * dy);
 
   const borderRadius = 2;
 
@@ -110,12 +112,13 @@ function DFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
   const arrowLength = 36;
   const arrowWidth = 32;
   const arrowHeadLength = 28;
-  const stepAreaLength = length - arrowLength - stepSpacing;
+  const stepAreaLength = Math.max(0, distance - topOffset - arrowLength - stepSpacing);
+  const bodyStartY = topOffset + stepAreaLength + stepSpacing;
   const stepWidth = arrowWidth;
-  const stepOffsetX = (length - stepWidth) / 2;
+  const stepOffsetX = -stepWidth / 2;
 
   return (
-    <g transform={`translate(${x1 - arrowWidth}, ${y1 + topOffset}) rotate(${angle})`}>
+    <g transform={`translate(${x1}, ${y1}) rotate(${angle})`}>
       {/* Degraus do fluxo de dados */}
       {(() => {
         const steps = [];
@@ -153,7 +156,7 @@ function DFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
             <rect
               key={`step-${stepIndex}`}
               x={stepOffsetX}
-              y={y}
+              y={topOffset + y}
               width={stepWidth}
               height={finalHeight}
               rx={borderRadius}
@@ -175,8 +178,8 @@ function DFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
       {/* Seta completa com corpo e ponta */}
       {/* Corpo da seta */}
       <rect
-        x={length / 2 - arrowWidth / 2}
-        y={stepAreaLength}
+        x={-arrowWidth / 2}
+        y={bodyStartY}
         width={arrowWidth}
         height={arrowLength - arrowHeadLength + borderRadius}
         rx={borderRadius}
@@ -188,9 +191,9 @@ function DFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
 
       {/* Ponta triangular da seta */}
       <path
-        d={`M ${length / 2 - arrowWidth} ${stepAreaLength + arrowLength - arrowHeadLength}
-            L ${length / 2 + arrowWidth} ${stepAreaLength + arrowLength - arrowHeadLength}
-            L ${length / 2} ${stepAreaLength + arrowLength}
+        d={`M ${-arrowWidth} ${bodyStartY + arrowLength - arrowHeadLength}
+          L ${arrowWidth} ${bodyStartY + arrowLength - arrowHeadLength}
+          L 0 ${bodyStartY + arrowLength}
             Z`}
         fill={colors.primary}
         stroke={colors.primary}
