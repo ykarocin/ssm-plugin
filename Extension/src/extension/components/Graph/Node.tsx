@@ -1,7 +1,6 @@
 // components/CodeNode.tsx
 import React, { CSSProperties } from "react";
-import { getDiffLine, scrollAndHighlight } from "../Diff/diff-navigation";
-import { firstVisibleLine, lastVisibleLine, expandBottom, expandTop } from "../Diff/InsertButtons";
+import { scrollToDiffLine } from "../Diff/diff-navigation";
 
 interface CodeNodeProps {
   fileName: string;
@@ -82,25 +81,7 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
   const startY = 2 * padding + baseFontSize;
 
   const handleClick = () => {
-    const file= fileName;
-    const diffLine = getDiffLine(file.endsWith(".java") ? file : `${file}.java`, numberHighlight);
-
-    // checking if the diffLine is visible
-    if (diffLine?.classList.contains("d2h-d-none")){
-      let firstLine = firstVisibleLine(file);
-      const diffFile = document.querySelector(`${file}`) as HTMLElement;
-      while (diffLine?.classList.contains("d2h-d-none")) {
-        if (numberHighlight > firstLine){
-          let lastLine = lastVisibleLine(file);
-          expandBottom(diffFile, lastLine, file);
-        } else{
-          firstLine = firstVisibleLine(file);
-          expandTop(diffFile, firstLine, file);
-        }
-      }
-    }
-
-    scrollAndHighlight(diffLine);
+    scrollToDiffLine(fileName, numberHighlight);
   };
 
   return (
