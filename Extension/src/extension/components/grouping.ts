@@ -20,6 +20,7 @@ const ConflictGridTypeLayouts: { [key: string]: ConflictGridType } = {
   C3: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [2, 1], [1, 2], [2, 2]] },
   D3: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [2, 1], [1, 2], [2, 2]] },
   A4: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [2, 1], [1, 2], [2, 2]] },
+  ThreeX3: { layout: { rows: 3, columns: 3 }, positions: [[1, 2], [2, 2], [3, 2]] },
   default: { layout: { rows: 2, columns: 2 }, positions: [[1, 1], [2, 1], [1, 2], [2, 2]] }
 };
 
@@ -142,7 +143,11 @@ const getGraphType = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node): Co
           Lfile === Rfile &&
           Lfile !== LCfile
         ) {
-          return ConflictGridTypeLayouts.B2;
+          if (dep.type.startsWith("CONFLICT")){
+            return ConflictGridTypeLayouts.B2;
+          } else {
+            return ConflictGridTypeLayouts.ThreeX3;
+          }
         }
         // L in file A, R and LC in same file B
         else if (
@@ -168,7 +173,11 @@ const getGraphType = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node): Co
           Lfile === Rfile &&
           Lfile !== RCfile
         ) {
-          return ConflictGridTypeLayouts.C2;
+          if (dep.type.startsWith("CONFLICT")){
+            return ConflictGridTypeLayouts.C2;
+          } else {
+            return ConflictGridTypeLayouts.ThreeX3;
+          }
         }
         // R in file A, L and RC in same file B
         else if (

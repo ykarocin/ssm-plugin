@@ -48,6 +48,7 @@ export default function GraphView({ data, conflictGridType, dependencyType }: Gr
         const nodesIndex: number[] = [];
         nodeRefs.current[fileIndex] = [];
 
+        // Adicionar if para verificar se o layout é o Threex3, porque ser for vai precisar de uma lógica diferente para posicionar os nós
         fileObject.nodes.forEach((node, nodeIndex) => {
           const posIndex = curNodeIndex++;
           const position = conflictGridType.positions[posIndex];
