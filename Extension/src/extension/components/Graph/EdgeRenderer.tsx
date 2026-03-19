@@ -32,6 +32,8 @@ export function EdgeRenderer({ arrows, gridRect }: EdgeRendererProps) {
             x2={arrow.to.x2 ?? 0}
             y2={arrow.to.y2 ?? 0}
             type={arrow.type}
+            targetFace={arrow.targetFace}
+            originFace={arrow.originFace}
           />
         </g>
       ))}

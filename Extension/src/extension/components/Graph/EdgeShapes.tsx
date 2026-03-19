@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowType } from "./arrowLayout";
+import { ArrowType, NodeFace } from "./arrowLayout";
 import { getEdgeColors } from "./edgeStyles";
 
 interface EdgeShapeProps {
@@ -8,25 +8,59 @@ interface EdgeShapeProps {
   x2: number;
   y2: number;
   type?: ArrowType;
+  targetFace?: NodeFace;
+  originFace?: NodeFace;
 }
 
 /**
  * Call Edge: Linha reta simples com seta triangular
  */
-function CallEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
+function CallEdge({ x1, y1, x2, y2, targetFace = "left", originFace = "right" }: EdgeShapeProps) {
   const colors = getEdgeColors("call");
   const markerId = "marker-call";
   const strokeColor = colors.primary;
 
-  // Conector ortogonal em 90 graus: a última perna rotaciona para acompanhar a direção predominante
-  const dx = Math.abs(x2 - x1);
-  const dy = Math.abs(y2 - y1);
-  
-  // Se dx >= dy, primeira perna é horizontal; offset é em X
-  // Senão, primeira é vertical; offset é em Y
-  const pathData = dx >= dy
-    ? `M ${x1} ${y1} L ${(x1 + x2) / 2} ${y1} L ${(x1 + x2) / 2} ${y2} L ${x2} ${y2}` // horizontal-first, offset em X
-    : `M ${x1} ${y1} L ${x1} ${(y1 + y2) / 2} L ${x2} ${(y1 + y2) / 2} L ${x2} ${y2}`; // vertical-first, offset em Y
+  console.log(`CallEdge from (${x1}, ${y1}) to (${x2}, ${y2}), originFace: ${originFace}, targetFace: ${targetFace}`);
+
+  // Categorize faces
+  const originIsHorizontal = originFace === "left" || originFace === "right";
+  const targetIsHorizontal = targetFace === "left" || targetFace === "right";
+
+  let pathData: string;
+
+  if (originIsHorizontal !== targetIsHorizontal) {
+    // Different categories: use one bend (L-shape)
+    if (targetIsHorizontal) {
+      // Origin is vertical (top/bottom), target is horizontal (left/right)
+      // Go vertical first to target's y, then horizontal to target's x
+      pathData = `M ${x1} ${y1} L ${x1} ${y2} L ${x2} ${y2}`;
+    } else {
+      // Origin is horizontal (left/right), target is vertical (top/bottom)
+      // Go horizontal first to target's x, then vertical to target's y
+      pathData = `M ${x1} ${y1} L ${x2} ${y1} L ${x2} ${y2}`;
+    }
+  } else {
+    // Same category: check alignment for zero or two bends
+    if (originIsHorizontal) {
+      // Both horizontal: check if on same row
+      if (y1 === y2) {
+        // Same row: straight line (zero bends)
+        pathData = `M ${x1} ${y1} L ${x2} ${y2}`;
+      } else {
+        // Different rows: two bends with horizontal-vertical-horizontal pattern
+        pathData = `M ${x1} ${y1} L ${(x1 + x2) / 2} ${y1} L ${(x1 + x2) / 2} ${y2} L ${x2} ${y2}`;
+      }
+    } else {
+      // Both vertical: check if on same column
+      if (x1 === x2) {
+        // Same column: straight line (zero bends)
+        pathData = `M ${x1} ${y1} L ${x2} ${y2}`;
+      } else {
+        // Different columns: two bends with vertical-horizontal-vertical pattern
+        pathData = `M ${x1} ${y1} L ${x1} ${(y1 + y2) / 2} L ${x2} ${(y1 + y2) / 2} L ${x2} ${y2}`;
+      }
+    }
+  }
 
   return (
     <>
@@ -259,12 +293,12 @@ function CFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
 /**
  * Componente principal que renderiza a aresta apropriada baseada no tipo
  */
-export function EdgeShape({ x1, y1, x2, y2, type }: EdgeShapeProps) {
+export function EdgeShape({ x1, y1, x2, y2, type, originFace, targetFace }: EdgeShapeProps) {
   const baseType = type || "call";
 
   switch (baseType) {
     case "call":
-      return <CallEdge x1={x1} y1={y1} x2={x2} y2={y2} type={type} />;
+      return <CallEdge x1={x1} y1={y1} x2={x2} y2={y2} type={type} originFace={originFace} targetFace={targetFace} />;
     case "OA":
       return <OAEdge x1={x1} y1={y1} x2={x2} y2={y2} type={type} />;
     case "DF":
@@ -272,6 +306,6 @@ export function EdgeShape({ x1, y1, x2, y2, type }: EdgeShapeProps) {
     case "CF":
       return <CFEdge x1={x1} y1={y1} x2={x2} y2={y2} type={type} />;
     default:
-      return <CallEdge x1={x1} y1={y1} x2={x2} y2={y2} type={type} />;
+      return <CallEdge x1={x1} y1={y1} x2={x2} y2={y2} type={type} originFace={originFace} targetFace={targetFace} />;
   }
 }
