@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import AnalysisService from "../../services/AnalysisService";
 import { dependency, modLine } from "../../models/AnalysisOutput";
 import { filterDuplicatedDependencies, updateLocationFromStackTrace } from "./dependencies";
@@ -8,7 +8,7 @@ import GraphView, { ConflictGridType } from "./Graph/GraphView";
 import "../styles/dependency-plugin.css";
 import SettingsButton from "./Settings/Settings-button";
 import SettingsService from "../../services/SettingsService";
-import { getClassFromJavaFilename, isLineFromLeft, ensureJavaExtension } from "@extension/utils";
+import { getClassFromJavaFilename, ensureJavaExtension } from "@extension/utils";
 import { Node } from "./Graph/Node";
 import { getDiffLine } from "./Diff/diff-navigation";
 import { FileObject, Grouping_nodes, getGraphType } from "./grouping";
@@ -83,110 +83,128 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
    * graph properties
    */
   const [graphData, setGraphData] = useState<GraphData | null>(null);
+  const [allGraphsData, setAllGraphsData] = useState<Map<number, GraphData>>(new Map()); // Store graph data for all conflicts
+  const [loadingConflicts, setLoadingConflicts] = useState<Set<number>>(new Set()); // Track which conflicts are currently loading
 
   /*
    * methods
    */
-  const updateGraph = (dep: dependency, L: Node, R: Node, CF?: Node) => {
-    // get the LC and RC
-    dep = updateLocationFromStackTrace(dep, { inplace: false, mode: "deep" });
 
-    const { L: LC, R: RC } = extractNodesFromDependency(dep);
-
-    // If the nodes are equal, update from the stack trace
-    if (getClassFromJavaFilename(L.fileName) === getClassFromJavaFilename(LC.fileName) && L.numberHighlight === LC.numberHighlight) {
-      L.fileName = ensureJavaExtension(dep.body.interference[0].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? L.fileName);
-
-      if (dep.body.interference[0].stackTrace?.at(0)?.line){
-        L.numberHighlight = dep.body.interference[0].stackTrace?.at(0)?.line ?? L.numberHighlight;
-
-        let L_Row;
-        let newNumber = L.numberHighlight;
-        for ( let i = -1; i <= 1; i++){
-          L_Row = getDiffLine(L.fileName, newNumber + i);
-    
-          L.lines[i + 1] = L_Row.querySelector(".d2h-code-line-ctn")?.textContent || "";
-        }
-
-      } 
+  // Helper function to load a single graph
+  const loadGraphForConflict = useCallback((index: number, callback?: (data: GraphData | null) => void) => {
+    if (index >= dependencies.length) {
+      callback?.(null);
+      return;
     }
 
-    if (getClassFromJavaFilename(R.fileName) === getClassFromJavaFilename(RC.fileName) && R.numberHighlight === RC.numberHighlight) {
-      R.fileName = ensureJavaExtension(dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? R.fileName);
+    const dep = dependencies[index];
+    try {
+      const { L, R } = extractNodesFromDependency(dep);
+      
+      // Build dependency copy for processing
+      let depCopy = JSON.parse(JSON.stringify(dep));
+      depCopy = updateLocationFromStackTrace(depCopy, { inplace: false, mode: "deep" });
 
-      if (dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.line){
-        R.numberHighlight = dep.body.interference[dep.body.interference.length - 1].stackTrace?.at(0)?.line ?? R.numberHighlight;
+      const { L: LC, R: RC } = extractNodesFromDependency(depCopy);
 
-        let R_Row;
-        let newNumber = R.numberHighlight;
-        for ( let i = -1; i <= 1; i++){
-          R_Row = getDiffLine(R.fileName, newNumber + i);
-
-          R.lines[i + 1] = R_Row.querySelector(".d2h-code-line-ctn")?.textContent || "";
-        }
-
-      } 
-    }
-
-    //Sending the correct colors to the nodes
-    //TODO: set colors
-    // let lColor = "";
-    // let rColor = "";
-
-    // const leftLines = [L, LC];
-
-    // if (isLineFromLeft(leftLines, modifiedLines)) {
-    //   lColor = "#1E90FF"; //azul
-    //   rColor = "#228B22"; //verde
-    // } else {
-    //   lColor = "#228B22"; //verde
-    //   rColor = "#1E90FF"; //azul
-    // }
-
-    const normalizePath = (p?: string) =>
-      p ? p.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "") : p;
-
-    const unifyFileNames = (...nodes: Array<Node | undefined>) => {
-      const ns = nodes.filter(Boolean) as Node[];
-      ns.forEach((n) => {
-        n.fileName = normalizePath(n.fileName) ?? n.fileName;
-      });
-
-      for (let i = 0; i < ns.length; i++) {
-        for (let j = 0; j < ns.length; j++) {
-          if (i === j) continue;
-          const a = ns[i].fileName;
-          const b = ns[j].fileName;
-          if (!a || !b || a === b) continue;
-
-          // se um contém o outro, atribui o menor (mais curto) ao maior
-          if (a.includes(b) && b.length < a.length) {
-            ns[i].fileName = b;
-          } else if (b.includes(a) && a.length < b.length) {
-            ns[j].fileName = a;
+      // Update L node from stack trace if needed
+      if (getClassFromJavaFilename(L.fileName) === getClassFromJavaFilename(LC.fileName) && L.numberHighlight === LC.numberHighlight) {
+        L.fileName = ensureJavaExtension(depCopy.body.interference[0].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? L.fileName);
+        if (depCopy.body.interference[0].stackTrace?.at(0)?.line) {
+          L.numberHighlight = depCopy.body.interference[0].stackTrace?.at(0)?.line ?? L.numberHighlight;
+          let L_Row;
+          let newNumber = L.numberHighlight;
+          for (let i = -1; i <= 1; i++) {
+            L_Row = getDiffLine(L.fileName, newNumber + i);
+            L.lines[i + 1] = L_Row.querySelector(".d2h-code-line-ctn")?.textContent || "";
           }
         }
       }
+
+      // Update R node from stack trace if needed
+      if (getClassFromJavaFilename(R.fileName) === getClassFromJavaFilename(RC.fileName) && R.numberHighlight === RC.numberHighlight) {
+        R.fileName = ensureJavaExtension(depCopy.body.interference[depCopy.body.interference.length - 1].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? R.fileName);
+        if (depCopy.body.interference[depCopy.body.interference.length - 1].stackTrace?.at(0)?.line) {
+          R.numberHighlight = depCopy.body.interference[depCopy.body.interference.length - 1].stackTrace?.at(0)?.line ?? R.numberHighlight;
+          let R_Row;
+          let newNumber = R.numberHighlight;
+          for (let i = -1; i <= 1; i++) {
+            R_Row = getDiffLine(R.fileName, newNumber + i);
+            R.lines[i + 1] = R_Row.querySelector(".d2h-code-line-ctn")?.textContent || "";
+          }
+        }
+      }
+
+      const normalizePath = (p?: string) =>
+        p ? p.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "") : p;
+
+      const unifyFileNames = (...nodes: Array<Node | undefined>) => {
+        const ns = nodes.filter(Boolean) as Node[];
+        ns.forEach((n) => {
+          n.fileName = normalizePath(n.fileName) ?? n.fileName;
+        });
+
+        for (let i = 0; i < ns.length; i++) {
+          for (let j = 0; j < ns.length; j++) {
+            if (i === j) continue;
+            const a = ns[i].fileName;
+            const b = ns[j].fileName;
+            if (!a || !b || a === b) continue;
+
+            if (a.includes(b) && b.length < a.length) {
+              ns[i].fileName = b;
+            } else if (b.includes(a) && a.length < b.length) {
+              ns[j].fileName = a;
+            }
+          }
+        }
+      };
+
+      unifyFileNames(L, R, LC, RC);
+      const newGraphData = Grouping_nodes(depCopy, L, R, LC, RC);
+      const graphType = getGraphType(depCopy, L, R, LC, RC);
+
+      if (newGraphData && graphType) {
+        const graphDataObj = { files: newGraphData, graphType, dependencyType: depCopy.type };
+        setAllGraphsData(prev => new Map(prev).set(index, graphDataObj));
+        callback?.(graphDataObj);
+        return;
+      }
+    } catch (error) {
+      console.warn(`Failed to load graph for conflict ${index}:`, error);
+    }
+    callback?.(null);
+  }, [dependencies]);
+
+  // Pre-load all graphs in the background after dependencies are loaded
+  useEffect(() => {
+    if (dependencies.length === 0) return;
+
+    const newGraphsData = new Map<number, GraphData>();
+    let loadedCount = 0;
+
+    const loadGraph = (index: number) => {
+      loadGraphForConflict(index, (data) => {
+        if (data) {
+          newGraphsData.set(index, data);
+        }
+        loadedCount++;
+        if (loadedCount === dependencies.length) {
+          setAllGraphsData(newGraphsData);
+        }
+      });
     };
 
-    unifyFileNames(L, R, LC, RC);
-    // Dividing the nodes into files
-    console.log("Updating graph with nodes:", { L, R, LC, RC });
-    const newGraphData = Grouping_nodes(dep, L, R, LC, RC);
-
-    // identifying the graph type
-    const graphType = getGraphType(dep, L, R, LC, RC);
-    console.log("GraphType Identificado: ", graphType);
-
-    // set the new graph data
-    if (!newGraphData || !graphType) setGraphData(null);
-    else setGraphData({ files: newGraphData, graphType, dependencyType: dep.type });
-  };
-
-  const changeActiveConflict = (dep: dependency) => {
-    const { L, R, CF } = extractNodesFromDependency(dep);
-    updateGraph(dep, L, R, CF);
-  };
+    // Load all graphs in the background
+    dependencies.forEach((_, index) => {
+      // Use requestIdleCallback for background loading, fallback to setTimeout
+      if ("requestIdleCallback" in window) {
+        requestIdleCallback(() => loadGraph(index), { timeout: 500 });
+      } else {
+        setTimeout(() => loadGraph(index), 10 + index * 50); // Stagger loading
+      }
+    });
+  }, [dependencies, loadGraphForConflict]);
 
   // get the analysis output
   useEffect(() => {
@@ -260,15 +278,30 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
         clearInterval(intervalRef.current);
       }
     };
-  }, [owner, repository, pull_number]);
+  }, [owner, repository, pull_number, loading]);
 
   // update the active conflict
   useEffect(() => {
     if (activeConflict !== null) {
-      const conflict = dependencies[activeConflict];
-      changeActiveConflict(conflict);
+      // Check if graph is already loaded
+      if (allGraphsData.has(activeConflict)) {
+        setGraphData(allGraphsData.get(activeConflict) || null);
+      } else if (!loadingConflicts.has(activeConflict)) {
+        // If not loaded and not already loading, load it immediately
+        setLoadingConflicts(prev => new Set(prev).add(activeConflict));
+        loadGraphForConflict(activeConflict, (data) => {
+          setLoadingConflicts(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(activeConflict);
+            return newSet;
+          });
+          if (data) {
+            setGraphData(data);
+          }
+        });
+      }
     }
-  }, [activeConflict]);
+  }, [activeConflict, allGraphsData, loadingConflicts, loadGraphForConflict]);
 
   return (
     <div id="dependency-plugin">

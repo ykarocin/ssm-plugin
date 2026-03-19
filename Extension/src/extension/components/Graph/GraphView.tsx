@@ -118,14 +118,10 @@ export default function GraphView({ data, conflictGridType, dependencyType }: Gr
         data.forEach((fileObject, fileIndex) => {
           const rects = (nodeRefs.current[fileIndex] ?? [])
             .filter(Boolean)
-            .map(el => el!.querySelector("svg")!.getBoundingClientRect());
+            .map(el => el!.querySelector("svg")!.getBoundingClientRect())
+            .filter(r => r.width > 0 && r.height > 0);
 
           if (rects.length > 0) {
-            const minLeft = Math.min(...rects.map(r => r.left));
-            const minTop = Math.min(...rects.map(r => r.top));
-            const maxRight = Math.max(...rects.map(r => r.right));
-            const maxBottom = Math.max(...rects.map(r => r.bottom));
-
             const minX = Math.min(...rects.map(r => r.x));
             const maxX = Math.max(...rects.map(r => r.x + r.width));
             const minY = Math.min(...rects.map(r => r.y));
@@ -160,7 +156,7 @@ export default function GraphView({ data, conflictGridType, dependencyType }: Gr
             if (el && node.role) {
               const nodeSvg = el.querySelector("svg");
               const rect = nodeSvg?.getBoundingClientRect();
-              if (!rect) return;
+              if (!rect || rect.width === 0 || rect.height === 0) return;
 
               nodeCoords[node.role] = {
                 x: rect.x,
@@ -175,7 +171,7 @@ export default function GraphView({ data, conflictGridType, dependencyType }: Gr
         })
         const newArrows = getArrows(nodeCoords, newGridRect, dependencyType);
         setArrows(newArrows);
-      }, 0);
+      }, 50);
     }
   }, [data, conflictGridType, dependencyType, gridKey]);
 
