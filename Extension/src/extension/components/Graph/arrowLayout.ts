@@ -176,14 +176,28 @@ const chooseBestCallArrowFace = (
   const dx = toCenterX - fromCenterX;
   const dy = toCenterY - fromCenterY;
 
+  const targetSameX = dx === 0;
+  const targetSameY = dy === 0;
+
+  const targetToRight = dx >= 0;
+  const targetBelow = dy >= 0;
+
   const facePriority: NodeFace[] =
-    Math.abs(dx) >= Math.abs(dy)
-      ? dx >= 0
-        ? ["left", "top", "bottom", "right"]
-        : ["right", "top", "bottom", "left"]
-      : dy >= 0
-        ? ["top", "left", "right", "bottom"]
-        : ["bottom", "left", "right", "top"];
+    targetSameX
+    ? targetBelow
+      ? ["top"] // target directly below, prefer top
+      : ["bottom"] // target directly above, prefer bottom
+    : targetSameY
+      ? targetToRight
+        ? ["left"] // target directly right, prefer left
+        : ["right"] // target directly left, prefer right
+      : targetToRight
+        ? targetBelow
+          ? ["left", "top"] // target right and below, prefer left then top
+          : ["left", "bottom"] // target right and above, prefer left then bottom
+        : targetBelow
+          ? ["right", "top"] // target left and below, prefer right then top
+          : ["right", "bottom"]; // target left and above, prefer right then bottom
 
   for (const face of facePriority) {
     const toCoord = getTargetFaceCoords(toNode, face);
