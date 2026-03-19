@@ -109,15 +109,17 @@ function OAEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
   const dy = y2 - y1;
   const angle = Math.atan2(dy, dx) * (180 / Math.PI) - 90;
 
-  // A ponta visual da OA no path original fica em (36.5002, 92.0145).
-  // Essa ponta é ancorada no ponto médio entre origem e destino para centralizar.
+  // Calculate midpoint for equal distance from origin and target
   const midX = (x1 + x2) / 2;
   const midY = (y1 + y2) / 2;
-  const tipX = 36.5002;
-  const tipY = 92.0145;
+  
+  // Use the geometric center of the shape's bounding box as anchor point
+  // Shape bounds: X [3.32 to 69.44], Y [0 to 92.01]
+  const centerX = 36.38; // Center of X range
+  const centerY = 46.01; // Center of Y range
 
   return (
-    <g transform={`translate(${midX}, ${midY}) rotate(${angle}) translate(${-tipX}, ${-tipY})`}>
+    <g transform={`translate(${midX}, ${midY}) rotate(${angle}) translate(${-centerX}, ${-centerY})`}>
       <path d="M36.5002 0C30.9773 0 26.5002 4.47716 26.5002 10V61.4237L17.4458 51.3246C13.759 47.2124 7.43679 46.8676 3.32464 50.5543C-0.787502 54.2411 -1.13235 60.5633 2.5544 64.6755L27.0653 92.0145C31.8343 97.3338 40.1659 97.3338 44.9349 92.0145L69.4458 64.6755C73.1325 60.5633 72.7877 54.2411 68.6755 50.5543C64.5634 46.8676 58.2411 47.2124 54.5544 51.3246L46.5002 60.3081V10C46.5002 4.47715 42.023 0 36.5002 0Z"
         fill={colors.primary}
         fillRule="evenodd"
