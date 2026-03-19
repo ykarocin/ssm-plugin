@@ -18,9 +18,15 @@ function CallEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
   const markerId = "marker-call";
   const strokeColor = colors.primary;
 
-  // Conector ortogonal em 90 graus: horizontal -> vertical -> horizontal
-  const midX = (x1 + x2) / 2;
-  const pathData = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
+  // Conector ortogonal em 90 graus: a última perna rotaciona para acompanhar a direção predominante
+  const dx = Math.abs(x2 - x1);
+  const dy = Math.abs(y2 - y1);
+  
+  // Se dx >= dy, primeira perna é horizontal; offset é em X
+  // Senão, primeira é vertical; offset é em Y
+  const pathData = dx >= dy
+    ? `M ${x1} ${y1} L ${(x1 + x2) / 2} ${y1} L ${(x1 + x2) / 2} ${y2} L ${x2} ${y2}` // horizontal-first, offset em X
+    : `M ${x1} ${y1} L ${x1} ${(y1 + y2) / 2} L ${x2} ${(y1 + y2) / 2} L ${x2} ${y2}`; // vertical-first, offset em Y
 
   return (
     <>
