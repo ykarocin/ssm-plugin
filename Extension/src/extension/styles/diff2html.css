@@ -101,6 +101,29 @@
   transition: background-color 0.2s ease, color 0.2 ease;
 }
 
+.pl-expand-controls-cell {
+  padding: 4px 8px;
+}
+
+.pl-expand-controls-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.pl-expand-button {
+  width: auto;
+  min-width: 2.2em;
+  padding: 2px 10px;
+  border-radius: 4px;
+}
+
+.pl-expand-hidden-count {
+  color: var(--d2h-dark-dim-color);
+  font-size: 12px;
+}
+
 .button-cell {
   display: table-cell;
   padding: 0;

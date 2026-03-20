@@ -23,15 +23,29 @@ const clickClosestExpandButton = (rows: HTMLTableRowElement[], targetIndex: numb
 
   for (let index = 0; index < rows.length; index++) {
     const row = rows[index];
-    if (!row.classList.contains("button-container-dark")) continue;
+    if (!row.classList.contains("pl-expand-controls")) continue;
 
-    const isBottomButton = !!row.querySelector(".button-bottom");
-    const isTopButton = !!row.querySelector(".button-top");
-    const button = row.querySelector("button") as HTMLButtonElement | null;
+    let button: HTMLButtonElement | null = null;
+
+    if (index < targetIndex) {
+      button = row.querySelector('button[data-expand-direction="down"]') as HTMLButtonElement | null;
+      if (!button) {
+        button = row.querySelector('button[data-expand-direction="both"]') as HTMLButtonElement | null;
+      }
+      if (!button) {
+        button = row.querySelector('button[data-expand-direction="all"]') as HTMLButtonElement | null;
+      }
+    } else if (index > targetIndex) {
+      button = row.querySelector('button[data-expand-direction="up"]') as HTMLButtonElement | null;
+      if (!button) {
+        button = row.querySelector('button[data-expand-direction="both"]') as HTMLButtonElement | null;
+      }
+      if (!button) {
+        button = row.querySelector('button[data-expand-direction="all"]') as HTMLButtonElement | null;
+      }
+    }
+
     if (!button) continue;
-
-    const isUsable = (isBottomButton && index < targetIndex) || (isTopButton && index > targetIndex);
-    if (!isUsable) continue;
 
     const distance = Math.abs(targetIndex - index);
     if (distance < bestDistance) {
