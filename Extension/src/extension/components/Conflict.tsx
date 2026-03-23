@@ -1,10 +1,10 @@
 import { dependency } from "../../models/AnalysisOutput";
-import { updateLocationFromStackTrace } from "./dependencies";
 
 interface ConflictProps {
   index: number;
   dependency: dependency;
   setConflict: (index: number) => void;
+  isActive: boolean;
 }
 
 type locationStrings = {
@@ -12,61 +12,74 @@ type locationStrings = {
   to: string;
 };
 
-export default function Conflict({ index, dependency, setConflict }: ConflictProps) {
-  const getLocationFromStackTrace: (dep: dependency) => locationStrings = (dep: dependency) => {
-    const newDep = updateLocationFromStackTrace(dep, { inplace: true });
+export default function Conflict({ index, dependency, setConflict, isActive }: ConflictProps) {
+  const getDependencyDisplayName = (dep: dependency): string => {
+    if (dep.type.startsWith("CONFLUENCE")) {
+      return "Confluence Flow";
+    }
 
-    const class0 = newDep.body.interference[0].location.class;
-    const line0 = newDep.body.interference[0].location.line;
-    const classN = newDep.body.interference[newDep.body.interference.length - 1].location.class;
-    const lineN = newDep.body.interference[newDep.body.interference.length - 1].location.line;
+    if (dep.type.startsWith("OA")) {
+      return "Overriding Assignment";
+    }
 
-    return {
-      from: `${class0}:${line0}`,
-      to: `${classN}:${lineN}`
-    };
+    // Legacy SVFA/CONFLICT events are Data Flow dependencies.
+    if (dep.type.startsWith("DF") || dep.type === "CONFLICT" || dep.label.toUpperCase().includes("SVFA")) {
+      return "Data Flow";
+    }
+
+    return dep.label;
   };
 
   const getLocationStrings: (dep: dependency) => locationStrings = (dep: dependency) => {
-    const location0 = dep.body.interference[0].location;
-    const locationN = dep.body.interference[dep.body.interference.length - 1].location;
+    const nodes = dep.body.interference;
 
-    if (location0.file === "UNKNOWN" || locationN.file === "UNKNOWN") {
-      return getLocationFromStackTrace(dep);
-    } else {
+    if (dep.type.startsWith("CONFLICT") || dep.type.startsWith("DF")) {
+      const sources = nodes.filter((n) => n.type.toLowerCase().includes("source"));
+      const sinks = nodes.filter((n) => n.type.toLowerCase().includes("sink"));
+      const sourceNode = sources.find((n) => n.location.line >= 0) ?? sources[0] ?? nodes[0];
+      const sinkNode = [...sinks].reverse().find((n) => n.location.line >= 0) ?? sinks[sinks.length - 1] ?? nodes[nodes.length - 1];
+
       return {
-        from: `${location0.class}:${location0.line}`,
-        to: `${locationN.class}:${locationN.line}`
+        from: `${sourceNode.location.class}:${sourceNode.location.line}`,
+        to: `${sinkNode.location.class}:${sinkNode.location.line}`
       };
     }
+
+    if (dep.type.startsWith("CONFLUENCE")) {
+      const sourceOne = nodes.find((n) => n.type === "source1") ?? nodes[0];
+      const sourceTwo = nodes.find((n) => n.type === "source2") ?? nodes[nodes.length - 1];
+      return {
+        from: `${sourceOne.location.class}:${sourceOne.location.line}`,
+        to: `${sourceTwo.location.class}:${sourceTwo.location.line}`
+      };
+    }
+
+    const first = nodes.find((n) => n.location.line >= 0) ?? nodes[0];
+    const last = [...nodes].reverse().find((n) => n.location.line >= 0) ?? nodes[nodes.length - 1];
+
+    return {
+      from: `${first.location.class}:${first.location.line}`,
+      to: `${last.location.class}:${last.location.line}`
+    };
   };
 
   const locationStrings = getLocationStrings(dependency);
-  const maxLength = 28;
-  const minimizedString = (str: string) => str.length > maxLength ? `${str.slice(0, maxLength)}...` : str;
-
-  function definingTitle(): string{
-    if (locationStrings.to.length > maxLength || locationStrings.from.length > maxLength){
-      return `${locationStrings.from} → ${locationStrings.to}`;
-    } else{
-      return "";
-    }
-  }
+  const fullLocationText = `in ${locationStrings.from} → ${locationStrings.to}`;
   
   return (
-    <div className="tw-mb-3 tw-cursor-pointer tw-w-fit" onClick={() => setConflict(index)}>
-      {dependency.type === "CONFLICT" ? (
+    <div
+      className={`tw-cursor-pointer tw-w-full tw-rounded dependency-item ${isActive ? "dependency-item--active" : ""}`}
+      aria-selected={isActive}
+      onClick={() => setConflict(index)}>
       <span>
-        {"DF CONFLICT"};
+        {getDependencyDisplayName(dependency)}
       </span>
-    ) : (
-      <span>
-        {dependency.label} ({dependency.type})&nbsp;
-      </span>
-    )}
       
-      <p className="tw-text-gray-400" title={definingTitle()}>
-      in {minimizedString(locationStrings.from)} &rarr; {minimizedString(locationStrings.to)}
+      <p
+        className="tw-text-gray-400"
+        title={fullLocationText}
+        style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+      {fullLocationText}
       </p>
     </div>
   );

@@ -2,6 +2,27 @@
   position: relative; /* Define um referencial fixo para os elementos filhos */
 }
 
+.dependency-item {
+  margin-bottom: 0.25rem;
+  padding: 0.2rem 0.4rem;
+  transition: background-color 0.2s ease;
+}
+
+.dependency-item:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.dependency-item--active {
+  background-color: rgba(255, 255, 255, 0.01);
+  background-image: linear-gradient(
+    to top,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(255, 255, 255, 0.05) 10%,
+    rgba(255, 255, 255, 0.01) 20%
+  );
+  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+}
+
 .dependencies-tab {
   background-color: #030F28 !important;
   color: #fff !important;

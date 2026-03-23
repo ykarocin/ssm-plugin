@@ -90,6 +90,10 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
    * methods
    */
 
+  const handleConflictSelect = useCallback((index: number) => {
+    setActiveConflict(index);
+  }, []);
+
   // Helper function to load a single graph
   const loadGraphForConflict = useCallback((index: number, callback?: (data: GraphData | null) => void) => {
     if (index >= dependencies.length) {
@@ -328,14 +332,14 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
                 id="dependency-container"
                 className="tw-min-w-fit tw-max-w-[20%] tw-h-fit tw-mr-5 tw-py-2 tw-px-3 tw-border tw-border-gray-700 tw-rounded">
                 <h3 className="tw-mb-5 tw-text-red-600">
-                  {dependencies.length} possible conflict
-                  {dependencies.length > 1 ? "s" : ""} reported:
+                  {dependencies.length} dependenc
+                  {dependencies.length > 1 ? "ies" : "y"} reported:
                 </h3>
                 <ul className="tw-list-none">
                   {dependencies.map((d, i) => {
                     return (
                       <li>
-                        <Conflict key={i} index={i} dependency={d} setConflict={setActiveConflict} />
+                        <Conflict key={i} index={i} dependency={d} setConflict={handleConflictSelect} isActive={activeConflict === i} />
                       </li>
                     );
                   })}
