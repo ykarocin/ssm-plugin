@@ -2,6 +2,45 @@
   position: relative; /* Define um referencial fixo para os elementos filhos */
 }
 
+.dependency-item {
+  margin-bottom: 0.25rem;
+  padding: 0.2rem 0.4rem;
+  transition: background-color 0.2s ease;
+}
+
+.dependency-item:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.dependency-item--active {
+  background-color: rgba(255, 255, 255, 0.01);
+  background-image: linear-gradient(
+    to top,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(255, 255, 255, 0.05) 10%,
+    rgba(255, 255, 255, 0.01) 20%
+  );
+  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.dependencies-tab {
+  background-color: #030F28 !important;
+  color: #fff !important;
+  border-bottom: 1px solid #3d444d !important;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.dependencies-tab[aria-selected="true"] {
+  border-bottom: none !important;
+}
+
+.pull-request-tab-content {
+  background-color: #030F28;
+  color: #fff;
+  padding: 1rem 2rem 1rem 2rem;
+}
+
 .dropdown-settings {
   position: absolute;
   min-width: fit-content;
@@ -142,6 +181,31 @@
   display: block;
 }
 
+.hidden {
+  display: none !important;
+}
+
+.back-to-top-button {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1000;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.875rem;
+  color: #fff;
+  background: rgba(3, 15, 40, 0.92);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.back-to-top-button:hover {
+  transform: translateY(-1px);
+  background: rgba(15, 39, 86, 0.95);
+}
+
 @keyframes fadeInBorder {
   to {
     border-color: rgb(250 204 21) /* #facc15 */;
@@ -156,6 +220,10 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
