@@ -70,6 +70,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
    * loading properties
    */
   const [loading, setloading] = useState<boolean>(true);
+  const [showBackToTop, setShowBackToTop] = useState<boolean>(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   /*
@@ -307,6 +308,24 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     }
   }, [activeConflict, allGraphsData, loadingConflicts, loadGraphForConflict]);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
+      setShowBackToTop(scrollTop > 250);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
     <div id="dependency-plugin">
       {loading ? (
@@ -365,6 +384,11 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
           </div>
         </>
       )}
+      {showBackToTop ? (
+        <button type="button" className="back-to-top-button" onClick={scrollToTop} aria-label="Back to top">
+          Back to top
+        </button>
+      ) : null}
     </div>
   );
 }

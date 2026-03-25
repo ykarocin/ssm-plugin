@@ -66,11 +66,16 @@ export default function Conflict({ index, dependency, setConflict, isActive }: C
   const locationStrings = getLocationStrings(dependency);
   const fullLocationText = `in ${locationStrings.from} → ${locationStrings.to}`;
   
+  const handleClick = () => {
+    setConflict(index);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
     <div
       className={`tw-cursor-pointer tw-w-full tw-rounded dependency-item ${isActive ? "dependency-item--active" : ""}`}
       aria-selected={isActive}
-      onClick={() => setConflict(index)}>
+      onClick={handleClick}>
       <span>
         {getDependencyDisplayName(dependency)}
       </span>

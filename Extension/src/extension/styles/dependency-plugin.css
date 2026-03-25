@@ -185,6 +185,27 @@
   display: none !important;
 }
 
+.back-to-top-button {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1000;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.875rem;
+  color: #fff;
+  background: rgba(3, 15, 40, 0.92);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.back-to-top-button:hover {
+  transform: translateY(-1px);
+  background: rgba(15, 39, 86, 0.95);
+}
+
 @keyframes fadeInBorder {
   to {
     border-color: rgb(250 204 21) /* #facc15 */;
