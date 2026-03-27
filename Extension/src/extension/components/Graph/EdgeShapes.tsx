@@ -107,7 +107,7 @@ function OAEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
   const colors = getEdgeColors("OA");
   const dx = x2 - x1;
   const dy = y2 - y1;
-  const angle = Math.atan2(dy, dx) * (180 / Math.PI) - 90;
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI) - 90 + 180; // add 180 to point from target to origin
 
   // Calculate midpoint for equal distance from origin and target
   const midX = (x1 + x2) / 2;
