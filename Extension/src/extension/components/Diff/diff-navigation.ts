@@ -1,5 +1,84 @@
 import { interferenceNode, modLine } from "../../../models/AnalysisOutput";
 
+const normalizeJavaFileName = (file: string) => (file.endsWith(".java") ? file : `${file}.java`);
+
+const getDiffFileWrapper = (file: string) => {
+  const normalizedFile = normalizeJavaFileName(file);
+  const diffContainer = document.getElementById("diff-container");
+  const diffFiles = diffContainer?.querySelectorAll(".d2h-file-wrapper");
+  if (!diffContainer || !diffFiles) throw new Error("Diff not found");
+
+  const diffContent = Array.from(diffFiles).filter((diffFile) => {
+    const fileName = diffFile.querySelector(".d2h-file-name")?.textContent?.replace(/\.java$/, "");
+    return fileName?.endsWith(normalizedFile.replace(/\.java$/, ""));
+  })[0] as HTMLElement | undefined;
+
+  if (!diffContent) throw new Error(`Diff not found for file ${normalizedFile}`);
+  return diffContent;
+};
+
+const clickClosestExpandButton = (rows: HTMLTableRowElement[], targetIndex: number) => {
+  let bestButton: HTMLButtonElement | null = null;
+  let bestDistance = Number.MAX_SAFE_INTEGER;
+
+  for (let index = 0; index < rows.length; index++) {
+    const row = rows[index];
+    if (!row.classList.contains("pl-expand-controls")) continue;
+
+    let button: HTMLButtonElement | null = null;
+
+    if (index < targetIndex) {
+      button = row.querySelector('button[data-expand-direction="down"]') as HTMLButtonElement | null;
+      if (!button) {
+        button = row.querySelector('button[data-expand-direction="both"]') as HTMLButtonElement | null;
+      }
+      if (!button) {
+        button = row.querySelector('button[data-expand-direction="all"]') as HTMLButtonElement | null;
+      }
+    } else if (index > targetIndex) {
+      button = row.querySelector('button[data-expand-direction="up"]') as HTMLButtonElement | null;
+      if (!button) {
+        button = row.querySelector('button[data-expand-direction="both"]') as HTMLButtonElement | null;
+      }
+      if (!button) {
+        button = row.querySelector('button[data-expand-direction="all"]') as HTMLButtonElement | null;
+      }
+    }
+
+    if (!button) continue;
+
+    const distance = Math.abs(targetIndex - index);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestButton = button;
+    }
+  }
+
+  if (!bestButton) return false;
+  bestButton.click();
+  return true;
+};
+
+const revealDiffLine = (file: string, line: number) => {
+  const normalizedFile = normalizeJavaFileName(file);
+  const diffLine = getDiffLine(normalizedFile, line) as HTMLTableRowElement;
+  if (!diffLine.classList.contains("d2h-d-none")) return diffLine;
+
+  const diffContent = getDiffFileWrapper(normalizedFile);
+  const maxAttempts = 50;
+
+  for (let attempt = 0; attempt < maxAttempts && diffLine.classList.contains("d2h-d-none"); attempt++) {
+    const rows = Array.from(diffContent.querySelectorAll("tr")) as HTMLTableRowElement[];
+    const targetIndex = rows.indexOf(diffLine);
+    if (targetIndex < 0) break;
+
+    const clicked = clickClosestExpandButton(rows, targetIndex);
+    if (!clicked) break;
+  }
+
+  return diffLine;
+};
+
 const fadeOutBorder = (diffLine: HTMLElement) => {
   diffLine.classList.add("pl-fadeout-border");
 };
@@ -37,6 +116,12 @@ const removeHighlight = (diffLine: HTMLElement) => {
 const scrollAndHighlight = (diffLine: HTMLElement) => {
   highlight(diffLine);
   diffLine.scrollIntoView({ block: "center" });
+};
+
+const scrollToDiffLine = (file: string, line: number) => {
+  const diffLine = revealDiffLine(file, line);
+  scrollAndHighlight(diffLine);
+  return diffLine;
 };
 
 const setColorFromBranch = (diffLine: HTMLElement, branch: "L" | "R", colorType: "ins" | "del") => {
@@ -165,21 +250,13 @@ const unsetAsConflictLine = (diffLine: HTMLElement, modifiedLines: modLine[]) =>
 };
 
 const getDiffLine = (file: string, line: number) => {
+  const normalizedFile = normalizeJavaFileName(file);
+
   // try to get the line element by id
-  let lineElement = document.getElementById(`${file}:${line}`);
+  let lineElement = document.getElementById(`${normalizedFile}:${line}`);
   if (lineElement) return lineElement;
 
-  // if not found, search for the line in the diff
-  const diffContainer = document.getElementById("diff-container");
-  const diffFiles = diffContainer?.querySelectorAll(".d2h-file-wrapper");
-  if (!diffContainer || !diffFiles) throw new Error("Diff not found");
-
-  // get the diff element of the file
-  const diffContent = Array.from(diffFiles).filter((diffFile) => {
-    const fileName = diffFile.querySelector(".d2h-file-name")?.textContent;
-    return fileName?.endsWith(file);
-  })[0];
-  if (!diffContent) throw new Error(`Diff not found for file ${file}`);
+  const diffContent = getDiffFileWrapper(normalizedFile);
 
   // get the line element
   const allLines = diffContent.querySelectorAll(`tr`);
@@ -187,10 +264,10 @@ const getDiffLine = (file: string, line: number) => {
     const lineNumber = l.querySelector(".line-num2")?.textContent;
     return lineNumber === line.toString();
   })[0];
-  if (!lineElement) throw new Error(`Line ${line} not found in file ${file}`);
+  if (!lineElement) throw new Error(`Line ${line} not found in file ${normalizedFile}`);
 
   // set the id and return
-  lineElement.id = `${file}:${line}`;
+  lineElement.id = `${normalizedFile}:${line}`;
   return lineElement;
 };
 
@@ -236,5 +313,6 @@ export {
   unsetAsConflictLine,
   removeLineColor,
   scrollAndHighlight,
+  scrollToDiffLine,
   getDiffLine
 };

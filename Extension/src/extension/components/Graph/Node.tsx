@@ -1,123 +1,110 @@
 // components/CodeNode.tsx
-import React from "react";
-import { getDiffLine, scrollAndHighlight } from "../Diff/diff-navigation";
-import { firstVisibleLine, lastVisibleLine, expandBottom, expandTop } from "../Diff/InsertButtons";
+import React, { CSSProperties } from "react";
+import { scrollToDiffLine } from "../Diff/diff-navigation";
 
 interface CodeNodeProps {
   fileName: string;
   lines: string[];
-  numberLines: number[];
+  numberHighlight: number;
   calledFile: string;
   isCall?: boolean;
   isSource?: boolean;
   isSink?: boolean;
   isDashed?: boolean;
+  style?: CSSProperties;
+  role?: string;
+  nodeColor?: { main: string; alt: string };
 }
 
 export class Node {
   fileName: string;
   lines: string[];
-  numberLines: number[];
+  numberHighlight: number;
   calledFile: string;
   isCall: boolean;
   isSource: boolean;
   isSink: boolean;
   isDashed: boolean;
+  role?: string;
 
   constructor(
     fileName: string,
     lines: string[],
-    numberLines: number[],
+    numberHighlight: number,
     calledFile = "",
     isCall = false,
     isSource: boolean = false,
     isSink: boolean = false,
-    isDashed: boolean = false
+    isDashed: boolean = false,
+    role: string = ""
   ) {
     this.fileName = fileName;
     this.lines = lines;
-    this.numberLines = numberLines;
+    this.numberHighlight = numberHighlight;
     this.calledFile = calledFile;
     this.isCall = isCall;
     this.isSource = isSource;
     this.isSink = isSink;
     this.isDashed = isDashed;
-  }
-
-  getWidth() {
-    return this.isSource || this.isSink ? 290 : 363;
+    this.role = role;
   }
 
   getHeight(lineHeight: number) {
     const padding = 40;
-    return this.lines.length * lineHeight + padding;
+    return 3 * lineHeight + padding;
   }
 }
 
 export const CodeNode: React.FC<CodeNodeProps> = ({
   fileName,
   lines,
-  numberLines,
+  numberHighlight,
   calledFile,
   isCall = false,
   isSource = false,
   isSink = false,
-  isDashed
+  isDashed,
+  style,
+  role,
+  nodeColor
 }) => {
   const isSpecial = isCall || isSink;
 
-  const width = isSpecial ? 290 : 363;
-  const lineSpacing = isSpecial ? 2 : 4;
-  const baseFontSize = isSpecial ? 16 : 20;
+  const width = isSpecial ? 50 : 60;
+  const minWidth = isSpecial ? 350 : 380;
+  const lineCharLimit = 50;
+  const lineSpacing = isSpecial ? 4 : 6;
+  const baseFontSize = isSpecial ? 12 : 14;
   const numberFontSize = isSpecial ? 12 : 14;
-  const padding = 40;
+  const padding = 8;
   const lineHeight = baseFontSize + lineSpacing;
-  const startY = 35;
+  const startY = 2 * padding + baseFontSize;
 
   const handleClick = () => {
-    const file= fileName;
-    const line = lines[1];
-    const diffLine = getDiffLine(file.endsWith(".java") ? file : `${file}.java`, Number(line));
-
-    // checking if the diffLine is visible
-    if (diffLine?.classList.contains("d2h-d-none")){
-      let firstLine = firstVisibleLine(file);
-      const diffFile = document.querySelector(`${file}`) as HTMLElement;
-      while (diffLine?.classList.contains("d2h-d-none")) {
-        if (Number(line) > firstLine){
-          let lastLine = lastVisibleLine(file);
-          expandBottom(diffFile, lastLine, file);
-        } else{
-          firstLine = firstVisibleLine(file);
-          expandTop(diffFile, firstLine, file);
-        }
-      }
-    }
-
-    scrollAndHighlight(diffLine);
+    scrollToDiffLine(fileName, numberHighlight);
   };
 
   return (
-    <svg width={width} height={lines.length * lineHeight + padding}>
+    <svg width={`max(${minWidth}px, ${width}%)`} height={lines.length * lineHeight + 4 * padding} xmlns="http://www.w3.org/2000/svg" overflow={"hidden"} style={{ ...style, position: "relative" }}>
       {/* Background */}
       <rect
         x="0"
         y="0"
-        width={width}
-        height={lines.length * lineHeight + padding}
-        rx="24"
-        ry="24"
-        fill="#D9D9D9"
+        width="100%"
+        height={lines.length * lineHeight + 4 * padding}
+        rx="16"
+        ry="16"
+        fill={nodeColor ? nodeColor.alt : "#142A38"}
       />
 
       {isDashed && (
         <rect
-          x="-4"
-          y="-4"
-          width={width + 8}
-          height={lines.length * lineHeight + padding + 8}
-          rx="28"
-          ry="28"
+          x={`-${padding}`}
+          y={`-${padding}`}
+          width={`calc(100% + ${2 * padding}px)`}
+          height={lines.length * lineHeight + 6 * padding}
+          rx="16"
+          ry="16"
           fill="none"
           stroke="#000"
           strokeWidth="2"
@@ -125,66 +112,86 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
         />
       )}
 
-
       {/* Code Lines */}
       {lines.map((line, i) => {
         const y = startY + i * lineHeight;
         const isHighlight = i === 1;
 
         return (
-          <g key={i}>
+          <g key={i} width={width - 2 * padding} >
             {isHighlight ? (
               <g onClick={handleClick} style={{ cursor: "pointer" }}>
                 <rect
-                  x="20"
+                  x="0"
                   y={y - baseFontSize}
-                  width={width - 40}
+                  width="100%"
                   height={lineHeight}
-                  fill="#A9A9A9"
-                  rx="8"
+                  fill={nodeColor ? nodeColor.main : "#142A38"}
                 />
                 <text
-                  x="30"
+                  x={padding}
                   y={y}
                   fontFamily="Roboto"
                   fontSize={numberFontSize}
                   fontWeight="400"
-                  fill="#333"
+                  fill="#FFFFFF"
                 >
-                  {numberLines[i]}
+                  {numberHighlight + i - 1}
                 </text>
+                <clipPath id={`bound-rect-${i}`}>
+                  <rect
+                    x={padding + 20}
+                    y={y - baseFontSize}
+                    width="100%"
+                    height={lineHeight}
+                  />
+                </clipPath>
                 <text
-                  x="60"
+                  x={padding + 20}
                   y={y}
                   fontFamily="Roboto"
                   fontSize={baseFontSize}
                   fontWeight="500"
-                  fill="#000"
+                  fill="#FFFFFF"
+                  overflow={"hidden"}
+                  style={{whiteSpace: "pre"}}
+                  clipPath={`url(#bound-rect-${i})`}
                 >
-                  {line}
+                  {line.slice(0, lineCharLimit) + (line.length > lineCharLimit ? " ..." : "")}
                 </text>
               </g>
             ) : (
               <>
                 <text
-                  x="30"
+                  x={padding}
                   y={y}
                   fontFamily="Roboto"
                   fontSize={numberFontSize}
                   fontWeight="400"
-                  fill="#333"
+                  fill="#FFFFFF"
                 >
-                  {numberLines[i]}
+                  {numberHighlight + i - 1}
                 </text>
+                <clipPath id={`bound-rect-${i}`}>
+                  <rect
+                    x={padding + 20}
+                    y={y - baseFontSize}
+                    width="100%"
+                    height={lineHeight}
+                  />
+                </clipPath>
                 <text
-                  x="60"
+                  x={padding + 20}
                   y={y}
                   fontFamily="Roboto"
                   fontSize={baseFontSize}
                   fontWeight="400"
-                  fill="#000"
+                  fill="#FFFFFF"
+                  overflow={"hidden"}
+                  style={{whiteSpace: "pre"}}
+                  clipPath={`url(#bound-rect-${i})`}
                 >
-                  {line}
+                  {line.slice(0, lineCharLimit) + (line.length > lineCharLimit ? " ..." : "")}
                 </text>
               </>
             )}
@@ -194,3 +201,21 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
     </svg>
   );
 };
+
+export type { CodeNodeProps };
+
+export function getWidth(isSource: boolean) {
+    if (isSource){
+      return 290;
+    } else {
+      return 363;
+    }
+  }
+
+export function getHeight(isSpecial: boolean) {
+  if (isSpecial){
+    return 41;
+  } else {
+    return 112;
+  }
+}
