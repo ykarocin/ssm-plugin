@@ -3,7 +3,13 @@
  * Ported from Python conflict_processor.py and related modules.
  */
 
-import type { ClassificationResult, FrameInfo, ModifiedLinesMap } from "../models/Classification";
+import type {
+  ClassificationResult,
+  FrameInfo,
+  ModifiedLinesMap,
+  OAType,
+  DFType,
+} from "../models/Classification";
 
 /**
  * Normalize a file reference (path, filename, or class name) into a canonical key.
@@ -632,4 +638,154 @@ export function processDFConflict(
   }
 
   return processInterferencePair(sourceNode, sinkNode, modifiedLines);
+}
+
+// ============================================================================
+// CLASSIFICATION FUNCTIONS
+// ============================================================================
+
+/**
+ * Classify a 1×1 case: both left and right have single file.
+ *
+ * If left[0] == right[0]: OA_A1 (same file)
+ * Else: OA_A2 (different files)
+ */
+function _classify_1_1(left: string[], right: string[]): OAType {
+  if (left[0] === right[0]) {
+    return "OA_A1";
+  }
+  return "OA_A2";
+}
+
+/**
+ * Classify a 1×2 case: left has 1 file, right has 2 files.
+ *
+ * Rules:
+ * - If left[0] == right[0] AND left[0] != right[1]: OA_B2
+ * - If left[0] == right[1]: OA_C2
+ * - Else: OA_A3
+ */
+function _classify_1_2(left: string[], right: string[]): OAType {
+  const sameStart = left[0] === right[0];
+  const sameEnd = left[0] === right[1];
+
+  if (sameStart && !sameEnd) {
+    return "OA_B2";
+  }
+  if (sameEnd) {
+    return "OA_C2";
+  }
+  return "OA_A3";
+}
+
+/**
+ * Classify a 2×1 case: left has 2 files, right has 1 file.
+ * Symmetric to 1×2 case.
+ */
+function _classify_2_1(left: string[], right: string[]): OAType {
+  const sameStart = left[0] === right[0];
+  const sameEnd = left[1] === right[0];
+
+  if (sameStart && !sameEnd) {
+    return "OA_B2";
+  }
+  if (sameEnd) {
+    return "OA_C2";
+  }
+  return "OA_A3";
+}
+
+/**
+ * Classify a 2×2 case: both left and right have 2 files.
+ *
+ * Evaluation order is CRITICAL (see CONFLICT_CLASSIFICATION.md):
+ * 1. Check left[1] == right[1] (same last file)
+ * 2. Check left[0] == right[0] (same start file)
+ * 3. Check E2 condition: left[0] == right[1] AND left[1] == right[0] (reversed)
+ *    MUST come before D3!
+ * 4. Check D3 condition: left[1] == right[0] OR left[0] == right[1] (chained)
+ * 5. Default to A4
+ */
+function _classify_2_2(left: string[], right: string[]): OAType {
+  // Rule 1: Check if same last file
+  if (left[1] === right[1]) {
+    // Different starts, same end → B3
+    if (left[0] !== right[0]) {
+      return "OA_B3";
+    }
+    // Same start and end → D2
+    return "OA_D2";
+  }
+
+  // Rule 2: Check if same start file
+  if (left[0] === right[0]) {
+    // Same start, different ends → C3
+    return "OA_C3";
+  }
+
+  // Rule 3: Check for E2 (reversed paths) - MUST come before D3!
+  if (left[0] === right[1] && left[1] === right[0]) {
+    return "OA_E2";
+  }
+
+  // Rule 4: Check for D3 (chained paths)
+  if (left[1] === right[0] || left[0] === right[1]) {
+    return "OA_D3";
+  }
+
+  // Rule 5: Default to A4 (all files distinct)
+  return "OA_A4";
+}
+
+/**
+ * Classify an OA conflict based on file sequences.
+ *
+ * Dispatch by (leftFiles.length, rightFiles.length):
+ * - (1, 1) → _classify_1_1
+ * - (1, 2) → _classify_1_2
+ * - (2, 1) → _classify_2_1
+ * - (2, 2) → _classify_2_2
+ * - Other → error
+ */
+export function classifyOA(
+  leftFiles: string[],
+  rightFiles: string[]
+): OAType | `Error: ${string}` {
+  const leftLen = leftFiles.length;
+  const rightLen = rightFiles.length;
+
+  if (leftLen === 1 && rightLen === 1) {
+    return _classify_1_1(leftFiles, rightFiles);
+  }
+  if (leftLen === 1 && rightLen === 2) {
+    return _classify_1_2(leftFiles, rightFiles);
+  }
+  if (leftLen === 2 && rightLen === 1) {
+    return _classify_2_1(leftFiles, rightFiles);
+  }
+  if (leftLen === 2 && rightLen === 2) {
+    return _classify_2_2(leftFiles, rightFiles);
+  }
+
+  return `Error: Invalid file sequence combination (${leftLen}×${rightLen})`;
+}
+
+/**
+ * Classify a DF conflict based on file sequences.
+ *
+ * Identical to OA classification logic, but with DF_ prefix.
+ */
+export function classifyDF(
+  leftFiles: string[],
+  rightFiles: string[]
+): DFType | `Error: ${string}` {
+  const oaResult = classifyOA(leftFiles, rightFiles);
+
+  if (oaResult.startsWith("Error:")) {
+    return oaResult as `Error: ${string}`;
+  }
+
+  // Convert OA_ prefix to DF_
+  const dfLabel = oaResult.replace(/^OA_/, "DF_");
+  return dfLabel as DFType;
 }
