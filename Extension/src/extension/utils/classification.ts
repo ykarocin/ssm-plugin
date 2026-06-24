@@ -313,3 +313,323 @@ export function closestModifiedDistance(
 
   return minDistance;
 }
+
+/**
+ * Rule 1: Find the start index in a frame list.
+ *
+ * Trim the stack to start from the first frame that was modified by the branch
+ * that owns this interference node. This removes "shared boilerplate" frames.
+ *
+ * Steps:
+ * 1. Determine owner via location-based check (file/line in modifiedLines)
+ * 2. If indeterminate, check stack trace frames
+ * 3. Default to 'L' if still unclear
+ * 4. Find first frame in owner's modified lines, return that index
+ */
+export function findStartIndex(
+  frames: FrameInfo[],
+  thisInterf: any,
+  otherInterf: any,
+  modifiedLines: ModifiedLinesMap | undefined
+): number {
+  if (!modifiedLines || frames.length === 0) {
+    return 0;
+  }
+
+  // Step 1: Location-based ownership
+  const thisFile = normalizeFilePath(thisInterf.location?.file);
+  const thisLine = thisInterf.location?.line;
+  let owner: "L" | "R" | undefined;
+
+  if (thisFile && thisLine !== undefined) {
+    owner = determineOwner(thisLine, thisFile, modifiedLines);
+  }
+
+  // Step 2: Stack trace-based ownership (fallback)
+  if (!owner) {
+    for (const frame of frames) {
+      const frameOwner = determineOwner(frame.line, frame.fileKey, modifiedLines);
+      if (frameOwner) {
+        owner = frameOwner;
+        break;
+      }
+    }
+  }
+
+  // Step 3: Default to 'L'
+  if (!owner) {
+    owner = "L";
+  }
+
+  // Step 4: Find first frame in owner's modified lines
+  for (let i = 0; i < frames.length; i++) {
+    const frameOwner = determineOwner(frames[i].line, frames[i].fileKey, modifiedLines);
+    if (frameOwner === owner) {
+      return i;
+    }
+  }
+
+  return 0;
+}
+
+/**
+ * Rule 2: Filter duplicate last frames.
+ *
+ * When both left and right frame lists end with the same (fileKey, line) pair,
+ * remove it from the side that does not own it to avoid ambiguity.
+ *
+ * Returns: [leftFrames, rightFrames, error]
+ */
+export function filterDuplicateLastFrames(
+  leftFrames: FrameInfo[],
+  rightFrames: FrameInfo[],
+  modifiedLines: ModifiedLinesMap | undefined
+): [FrameInfo[], FrameInfo[], string | undefined] {
+  // If either list is empty or last frames differ, return as-is
+  if (leftFrames.length === 0 || rightFrames.length === 0) {
+    return [leftFrames, rightFrames, undefined];
+  }
+
+  const lastLeft = leftFrames[leftFrames.length - 1];
+  const lastRight = rightFrames[rightFrames.length - 1];
+
+  if (lastLeft.fileKey !== lastRight.fileKey || lastLeft.line !== lastRight.line) {
+    return [leftFrames, rightFrames, undefined];
+  }
+
+  // Frames have same last (fileKey, line) - determine owner
+  const owner = determineOwner(lastLeft.line, lastLeft.fileKey, modifiedLines);
+
+  if (owner === "L") {
+    // Left owns it, remove from right
+    return [leftFrames, rightFrames.slice(0, -1), undefined];
+  } else if (owner === "R") {
+    // Right owns it, remove from left
+    return [leftFrames.slice(0, -1), rightFrames, undefined];
+  }
+
+  // Owner is ambiguous - use modified-line distance heuristic
+  if (!modifiedLines) {
+    // No modified lines info - error
+    return [
+      leftFrames,
+      rightFrames,
+      "unmodified_stack_trace",
+    ];
+  }
+
+  const leftDistance = closestModifiedDistance(
+    leftFrames.map((f) => f.line),
+    modifiedLines
+  );
+  const rightDistance = closestModifiedDistance(
+    rightFrames.map((f) => f.line),
+    modifiedLines
+  );
+
+  // Check if any frames are modified
+  if (leftDistance === Infinity && rightDistance === Infinity) {
+    return [
+      leftFrames,
+      rightFrames,
+      "unmodified_stack_trace",
+    ];
+  }
+
+  // Remove from the side with greater distance
+  if (leftDistance > rightDistance) {
+    return [leftFrames.slice(0, -1), rightFrames, undefined];
+  } else if (rightDistance > leftDistance) {
+    return [leftFrames, rightFrames.slice(0, -1), undefined];
+  }
+
+  // Distances are equal - use length as tie-breaker
+  if (leftFrames.length > rightFrames.length) {
+    return [leftFrames.slice(0, -1), rightFrames, undefined];
+  } else if (rightFrames.length > leftFrames.length) {
+    return [leftFrames, rightFrames.slice(0, -1), undefined];
+  }
+
+  // Ambiguous - both sides identical
+  return [
+    leftFrames,
+    rightFrames,
+    "ambiguous_duplicate_last_frame",
+  ];
+}
+
+/**
+ * Main pipeline for OA/DF conflicts.
+ *
+ * Given two interference nodes, produce the file sequences used for classification.
+ *
+ * Steps:
+ * 1. Extract frames from both nodes
+ * 2. Check for unmodified stack trace error
+ * 3. Check for symmetric (identical) stacks error
+ * 4. Apply Rule 1 to trim frames
+ * 5. Apply Rule 2 to remove duplicate last frames
+ * 6. Build full and classification file lists
+ */
+export interface ProcessedInterferencePair {
+  leftFilesFull: string[];
+  rightFilesFull: string[];
+  leftFilesForClass: string[];
+  rightFilesForClass: string[];
+  error?: string;
+}
+
+export function processInterferencePair(
+  leftInterf: any,
+  rightInterf: any,
+  modifiedLines: ModifiedLinesMap | undefined
+): ProcessedInterferencePair {
+  // Step 1: Extract frames
+  let leftFrames = getFramesWithLines(leftInterf);
+  let rightFrames = getFramesWithLines(rightInterf);
+
+  // Step 2: Unmodified stack trace check
+  if (modifiedLines && Object.keys(modifiedLines).length > 0) {
+    const leftHasModified = leftFrames.some((f) =>
+      isLineModified(f.line, f.fileKey, modifiedLines)
+    );
+    const rightHasModified = rightFrames.some((f) =>
+      isLineModified(f.line, f.fileKey, modifiedLines)
+    );
+
+    if (!leftHasModified || !rightHasModified) {
+      return {
+        leftFilesFull: [],
+        rightFilesFull: [],
+        leftFilesForClass: [],
+        rightFilesForClass: [],
+        error: "unmodified_stack_trace",
+      };
+    }
+  }
+
+  // Step 3: Symmetric check
+  const leftPairs = leftFrames.map((f) => `${f.fileKey}:${f.line}`);
+  const rightPairs = rightFrames.map((f) => `${f.fileKey}:${f.line}`);
+  if (
+    leftPairs.length === rightPairs.length &&
+    leftPairs.every((p, i) => p === rightPairs[i])
+  ) {
+    return {
+      leftFilesFull: [],
+      rightFilesFull: [],
+      leftFilesForClass: [],
+      rightFilesForClass: [],
+      error: "symmetric_modified_lines",
+    };
+  }
+
+  // Step 4: Apply Rule 1 (start index trimming)
+  const lstart = findStartIndex(leftFrames, leftInterf, rightInterf, modifiedLines);
+  const rstart = findStartIndex(rightFrames, rightInterf, leftInterf, modifiedLines);
+  leftFrames = leftFrames.slice(lstart);
+  rightFrames = rightFrames.slice(rstart);
+
+  // Step 5: Apply Rule 2 (duplicate last frame removal)
+  const [leftFiltered, rightFiltered, rule2Error] = filterDuplicateLastFrames(
+    leftFrames,
+    rightFrames,
+    modifiedLines
+  );
+
+  if (rule2Error) {
+    return {
+      leftFilesFull: [],
+      rightFilesFull: [],
+      leftFilesForClass: [],
+      rightFilesForClass: [],
+      error: rule2Error,
+    };
+  }
+
+  // Step 6: Build file lists
+  const leftFilesFull = framesToFiles(leftFiltered);
+  const rightFilesFull = framesToFiles(rightFiltered);
+  const leftFilesForClass = filesForClassification(leftFilesFull);
+  const rightFilesForClass = filesForClassification(rightFilesFull);
+
+  return {
+    leftFilesFull,
+    rightFilesFull,
+    leftFilesForClass,
+    rightFilesForClass,
+  };
+}
+
+/**
+ * OA-specific entry point for conflict processing.
+ *
+ * For OA conflicts, the two nodes are simply:
+ * - left: interference[0]
+ * - right: interference[-1]
+ */
+export function processOAConflict(
+  dependency: any,
+  modifiedLines: ModifiedLinesMap | undefined
+): ProcessedInterferencePair {
+  const interference = dependency.body?.interference || [];
+  if (interference.length < 2) {
+    return {
+      leftFilesFull: [],
+      rightFilesFull: [],
+      leftFilesForClass: [],
+      rightFilesForClass: [],
+      error: "insufficient_interference_nodes",
+    };
+  }
+
+  const leftInterf = interference[0];
+  const rightInterf = interference[interference.length - 1];
+
+  return processInterferencePair(leftInterf, rightInterf, modifiedLines);
+}
+
+/**
+ * DF-specific entry point for conflict processing.
+ *
+ * For DF conflicts, we select:
+ * - left (Source): first node with "Source" in type, fallback to first node
+ * - right (Sink): last node with "Sink" in type, fallback to last node
+ */
+export function processDFConflict(
+  dependency: any,
+  modifiedLines: ModifiedLinesMap | undefined
+): ProcessedInterferencePair {
+  const interference = dependency.body?.interference || [];
+  if (interference.length < 2) {
+    return {
+      leftFilesFull: [],
+      rightFilesFull: [],
+      leftFilesForClass: [],
+      rightFilesForClass: [],
+      error: "insufficient_interference_nodes",
+    };
+  }
+
+  // Find Source node (first with "Source" in type)
+  let sourceNode = interference.find((node) =>
+    (node.type || "").toLowerCase().includes("source")
+  );
+  if (!sourceNode) {
+    sourceNode = interference[0];
+  }
+
+  // Find Sink node (last with "Sink" in type, scanning in reverse)
+  let sinkNode: any = null;
+  for (let i = interference.length - 1; i >= 0; i--) {
+    if ((interference[i].type || "").toLowerCase().includes("sink")) {
+      sinkNode = interference[i];
+      break;
+    }
+  }
+  if (!sinkNode) {
+    sinkNode = interference[interference.length - 1];
+  }
+
+  return processInterferencePair(sourceNode, sinkNode, modifiedLines);
+}
