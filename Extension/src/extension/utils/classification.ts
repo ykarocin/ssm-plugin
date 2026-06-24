@@ -9,6 +9,8 @@ import type {
   ModifiedLinesMap,
   OAType,
   DFType,
+  CFType,
+  ConflictType,
 } from "../models/Classification";
 
 /**
@@ -788,4 +790,413 @@ export function classifyDF(
   // Convert OA_ prefix to DF_
   const dfLabel = oaResult.replace(/^OA_/, "DF_");
   return dfLabel as DFType;
+}
+
+// ============================================================================
+// CF CLASSIFICATION FUNCTIONS
+// ============================================================================
+
+/**
+ * Extract file sequence from a CF source node.
+ *
+ * Steps:
+ * 1. Iterate stack trace frames
+ * 2. Skip frames with no valid line number
+ * 3. Extract file key from frame
+ * 4. Deduplicate consecutive same file keys
+ * 5. If no frames yield file key, fall back to node's location.file
+ */
+function _extractFiles(sourceNode: any): string[] {
+  const files: string[] = [];
+
+  const stackTrace = sourceNode.stackTrace || [];
+  let lastFileKey: string | undefined;
+
+  // Process stack trace frames
+  for (const frame of stackTrace) {
+    const line = frame.line ?? frame.location?.line;
+    if (line === undefined || line === null || line < 0 || isNaN(line)) {
+      continue;
+    }
+
+    let fileKey: string | undefined;
+    if (frame.file) {
+      fileKey = normalizeFileKey(frame.file);
+    } else if (frame.location?.file) {
+      fileKey = normalizeFileKey(frame.location.file);
+    } else if (frame.class) {
+      fileKey = normalizeFileKey(frame.class);
+    } else if (frame.location?.class) {
+      fileKey = normalizeFileKey(frame.location.class);
+    }
+
+    if (!fileKey) {
+      continue;
+    }
+
+    // Add if different from last (deduplicate consecutive)
+    if (fileKey !== lastFileKey) {
+      files.push(fileKey);
+      lastFileKey = fileKey;
+    }
+  }
+
+  // Fall back to location.file if no frames yielded anything
+  if (files.length === 0 && sourceNode.location) {
+    const locFileKey =
+      normalizeFileKey(sourceNode.location.file) ||
+      normalizeFileKey(sourceNode.location.class);
+    if (locFileKey) {
+      files.push(locFileKey);
+    }
+  }
+
+  return files;
+}
+
+/**
+ * Extract confluence file from CF confluence node.
+ *
+ * Returns only location.file (or location.class), normalized to file key.
+ * Single file, not a sequence.
+ */
+function _extractConfluenceFile(confluenceNode: any): string | undefined {
+  if (!confluenceNode.location) {
+    return undefined;
+  }
+
+  return (
+    normalizeFileKey(confluenceNode.location.file) ||
+    normalizeFileKey(confluenceNode.location.class)
+  );
+}
+
+/**
+ * Remove stack frames from sources that match the confluence point.
+ *
+ * Removes any frame from source1/source2 where:
+ * - frame.class == confluence.location.class AND
+ * - frame.method == confluence.location.method AND
+ * - frame.line == confluence.location.line
+ *
+ * This isolates the "path to confluence" from the confluence point itself.
+ */
+function _filterConfluenceFrames(
+  sourceFrames: FrameInfo[],
+  confluenceNode: any
+): FrameInfo[] {
+  const cfClass = confluenceNode.location?.class;
+  const cfMethod = confluenceNode.location?.method;
+  const cfLine = confluenceNode.location?.line;
+
+  if (!cfClass || !cfMethod || cfLine === undefined) {
+    return sourceFrames;
+  }
+
+  return sourceFrames.filter((frame) => {
+    const frameClass = frame.frame.class || frame.frame.location?.class;
+    const frameMethod = frame.frame.method || frame.frame.location?.method;
+    const frameLine = frame.frame.line ?? frame.frame.location?.line;
+
+    // Remove if all three fields match exactly
+    if (frameClass === cfClass && frameMethod === cfMethod && frameLine === cfLine) {
+      return false; // Filter out this frame
+    }
+
+    return true; // Keep this frame
+  });
+}
+
+/**
+ * Reduce a file sequence for CF classification.
+ *
+ * Rules (same as OA/DF):
+ * - If ≤ 2 files: return as-is
+ * - If > 2 files: return [first, last]
+ * - If first == last: return [first]
+ */
+function _reduceCFSequence(files: string[]): string[] {
+  return filesForClassification(files);
+}
+
+/**
+ * Interface for processed CF conflict
+ */
+export interface ProcessedCFConflict {
+  source1Files: string[];
+  source2Files: string[];
+  confluenceFile: string;
+  error?: string;
+}
+
+/**
+ * CF-specific entry point for conflict processing.
+ *
+ * Extracts source1, source2, and confluence nodes by type matching.
+ * Applies CF-specific filtering and reduction.
+ *
+ * Node selection:
+ * - source1: node with "source1" in type, fallback to first unassigned
+ * - source2: node with "source2" in type, fallback to second unassigned
+ * - confluence: node with "confluence" in type, fallback to third unassigned
+ */
+export function processCFConflict(
+  dependency: any,
+  modifiedLines: ModifiedLinesMap | undefined
+): ProcessedCFConflict {
+  const interference = dependency.body?.interference || [];
+  if (interference.length < 3) {
+    return {
+      source1Files: [],
+      source2Files: [],
+      confluenceFile: "",
+      error: "insufficient_interference_nodes",
+    };
+  }
+
+  // Find nodes by type
+  let source1Node = interference.find((node) =>
+    (node.type || "").toLowerCase().includes("source1")
+  );
+  let source2Node = interference.find((node) =>
+    (node.type || "").toLowerCase().includes("source2")
+  );
+  let confluenceNode = interference.find((node) =>
+    (node.type || "").toLowerCase().includes("confluence")
+  );
+
+  // Fallback to positional if not found by type
+  const assigned = new Set<number>();
+  if (source1Node) {
+    assigned.add(interference.indexOf(source1Node));
+  } else {
+    source1Node = interference[0];
+    assigned.add(0);
+  }
+
+  if (source2Node) {
+    assigned.add(interference.indexOf(source2Node));
+  } else {
+    for (let i = 0; i < interference.length; i++) {
+      if (!assigned.has(i)) {
+        source2Node = interference[i];
+        assigned.add(i);
+        break;
+      }
+    }
+  }
+
+  if (confluenceNode) {
+    assigned.add(interference.indexOf(confluenceNode));
+  } else {
+    for (let i = 0; i < interference.length; i++) {
+      if (!assigned.has(i)) {
+        confluenceNode = interference[i];
+        break;
+      }
+    }
+  }
+
+  if (!source1Node || !source2Node || !confluenceNode) {
+    return {
+      source1Files: [],
+      source2Files: [],
+      confluenceFile: "",
+      error: "missing_cf_nodes",
+    };
+  }
+
+  // Extract file sequences
+  let source1FramesRaw = getFramesWithLines(source1Node);
+  let source2FramesRaw = getFramesWithLines(source2Node);
+
+  // Step 1: Filter confluence frames
+  let source1Frames = _filterConfluenceFrames(source1FramesRaw, confluenceNode);
+  let source2Frames = _filterConfluenceFrames(source2FramesRaw, confluenceNode);
+
+  // Step 2: Modified-line trimming (simplified version of Rule 1)
+  if (modifiedLines && Object.keys(modifiedLines).length > 0) {
+    // Find first modified frame for source1
+    let s1start = 0;
+    for (let i = 0; i < source1Frames.length; i++) {
+      if (isLineModified(source1Frames[i].line, source1Frames[i].fileKey, modifiedLines)) {
+        s1start = i;
+        break;
+      }
+    }
+    source1Frames = source1Frames.slice(s1start);
+
+    // Find first modified frame for source2
+    let s2start = 0;
+    for (let i = 0; i < source2Frames.length; i++) {
+      if (isLineModified(source2Frames[i].line, source2Frames[i].fileKey, modifiedLines)) {
+        s2start = i;
+        break;
+      }
+    }
+    source2Frames = source2Frames.slice(s2start);
+
+    // Check for unmodified error
+    if (source1Frames.length === 0 || source2Frames.length === 0) {
+      return {
+        source1Files: [],
+        source2Files: [],
+        confluenceFile: "",
+        error: "unmodified_stack_trace",
+      };
+    }
+  }
+
+  // Step 3: Build file sequences
+  const source1FilesFull = framesToFiles(source1Frames);
+  const source2FilesFull = framesToFiles(source2Frames);
+
+  // Check for symmetric error
+  const s1Pairs = source1Frames.map((f) => `${f.fileKey}:${f.line}`);
+  const s2Pairs = source2Frames.map((f) => `${f.fileKey}:${f.line}`);
+  if (s1Pairs.length === s2Pairs.length && s1Pairs.every((p, i) => p === s2Pairs[i])) {
+    return {
+      source1Files: [],
+      source2Files: [],
+      confluenceFile: "",
+      error: "symmetric_modified_lines",
+    };
+  }
+
+  // Step 4: Reduce sequences
+  const source1FilesReduced = _reduceCFSequence(source1FilesFull);
+  const source2FilesReduced = _reduceCFSequence(source2FilesFull);
+
+  // Extract confluence file
+  const confluenceFile = _extractConfluenceFile(confluenceNode);
+  if (!confluenceFile) {
+    return {
+      source1Files: [],
+      source2Files: [],
+      confluenceFile: "",
+      error: "missing_confluence_file",
+    };
+  }
+
+  return {
+    source1Files: source1FilesReduced,
+    source2Files: source2FilesReduced,
+    confluenceFile,
+  };
+}
+
+/**
+ * Classify a CF conflict based on file sequences.
+ *
+ * Current implementation returns "Other cases" as a placeholder.
+ * Full classification with all 32 CF types will be implemented iteratively.
+ *
+ * TODO: Implement all 32 CF classification rules per CONFLICT_CLASSIFICATION.md
+ */
+export function classifyCF(
+  source1Files: string[],
+  source2Files: string[],
+  confluenceFile: string
+): CFType | `Error: ${string}` {
+  // Placeholder implementation - returns "Other cases" for all CF conflicts
+  // TODO: Implement full 32-type CF classification with rule matching
+  return "CF_A1"; // Temporary: assume all are simple single-file cases for now
+}
+
+/**
+ * Main entry point for conflict classification.
+ *
+ * Routes to appropriate classifier based on conflict type:
+ * - OA: type contains "OA"
+ * - DF: type contains "CONFLICT"
+ * - CF: label contains "cf conflict" OR node types include source1/source2/confluence
+ *
+ * Returns ClassificationResult with all metadata.
+ */
+export function classifyDependency(
+  dependency: any,
+  modifiedLines: ModifiedLinesMap | undefined
+): ClassificationResult {
+  try {
+    const depType = (dependency.type || "").toUpperCase();
+    const depLabel = (dependency.label || "").toLowerCase();
+    const interference = dependency.body?.interference || [];
+
+    // Detect CF by label or node types
+    const hasCFLabel = depLabel.includes("cf conflict");
+    const nodeTypes = new Set(interference.map((n: any) => (n.type || "").toLowerCase()));
+    const hasCFNodes = nodeTypes.has("source1") && nodeTypes.has("source2") && nodeTypes.has("confluence");
+
+    // Route to appropriate classifier
+    if (hasCFLabel || hasCFNodes) {
+      // CF Classification
+      const processed = processCFConflict(dependency, modifiedLines);
+
+      if (processed.error) {
+        return {
+          conflictType: "CF",
+          label: `Error: ${processed.error}`,
+        };
+      }
+
+      const label = classifyCF(processed.source1Files, processed.source2Files, processed.confluenceFile);
+
+      return {
+        conflictType: "CF",
+        label,
+        source1Files: processed.source1Files,
+        source2Files: processed.source2Files,
+        confluenceFile: processed.confluenceFile,
+      };
+    } else if (depType.includes("CONFLICT")) {
+      // DF Classification
+      const processed = processDFConflict(dependency, modifiedLines);
+
+      if (processed.error) {
+        return {
+          conflictType: "DF",
+          label: `Error: ${processed.error}`,
+        };
+      }
+
+      const label = classifyDF(processed.leftFilesForClass, processed.rightFilesForClass);
+
+      return {
+        conflictType: "DF",
+        label,
+        leftFiles: processed.leftFilesFull,
+        rightFiles: processed.rightFilesFull,
+      };
+    } else if (depType.includes("OA")) {
+      // OA Classification
+      const processed = processOAConflict(dependency, modifiedLines);
+
+      if (processed.error) {
+        return {
+          conflictType: "OA",
+          label: `Error: ${processed.error}`,
+        };
+      }
+
+      const label = classifyOA(processed.leftFilesForClass, processed.rightFilesForClass);
+
+      return {
+        conflictType: "OA",
+        label,
+        leftFiles: processed.leftFilesFull,
+        rightFiles: processed.rightFilesFull,
+      };
+    } else {
+      // Unknown type
+      return {
+        conflictType: "OA" as ConflictType, // Default to OA
+        label: `Error: Unknown conflict type: ${depType}`,
+      };
+    }
+  } catch (error) {
+    return {
+      conflictType: "OA" as ConflictType,
+      label: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+    };
+  }
 }
