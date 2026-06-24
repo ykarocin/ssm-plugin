@@ -13,6 +13,8 @@ import { Node } from "./Graph/Node";
 import { getDiffLine } from "./Diff/diff-navigation";
 import { FileObject, Grouping_nodes, getGraphType } from "./grouping";
 import { extractNodesFromDependency } from "../utils/extractNode";
+import { classifyDependency } from "../utils/classification";
+import type { ClassificationResult } from "../models/Classification";
 
 const analysisService = new AnalysisService();
 const settingsService = new SettingsService();
@@ -29,6 +31,7 @@ type GraphData = {
   files: FileObject[];
   graphType: ConflictGridType;
   dependencyType?: string;
+  classification?: ClassificationResult;
 }
 
 interface DependencyViewProps {
@@ -166,11 +169,20 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
       };
 
       unifyFileNames(L, R, LC, RC);
+
+      // Classify the dependency based on semantic conflict analysis
+      const classification = classifyDependency(depCopy);
+
       const newGraphData = Grouping_nodes(depCopy, L, R, LC, RC);
-      const graphType = getGraphType(depCopy, L, R, LC, RC);
+      const graphType = getGraphType(depCopy, L, R, LC, RC, classification);
 
       if (newGraphData && graphType) {
-        const graphDataObj = { files: newGraphData, graphType, dependencyType: depCopy.type };
+        const graphDataObj = {
+          files: newGraphData,
+          graphType,
+          dependencyType: depCopy.type,
+          classification,
+        };
         setAllGraphsData(prev => new Map(prev).set(index, graphDataObj));
         callback?.(graphDataObj);
         return;
