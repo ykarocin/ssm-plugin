@@ -13,7 +13,7 @@ import { Node } from "./Graph/Node";
 import { getDiffLine } from "./Diff/diff-navigation";
 import { FileObject, Grouping_nodes, getGraphType } from "./grouping";
 import { extractNodesFromDependency } from "../utils/extractNode";
-import { classifyDependency } from "../utils/classification";
+import { classifyDependency, normalizeFileKey } from "../utils/classification";
 import type { ClassificationResult } from "../models/Classification";
 
 const analysisService = new AnalysisService();
@@ -171,14 +171,24 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
       unifyFileNames(L, R, LC, RC);
 
       // Convert modifiedLines array to map format for classification
+      // Use both full file path and normalized key for lookup flexibility
       const modifiedLinesMap: Record<string, any> = {};
       modifiedLines.forEach((ml) => {
-        modifiedLinesMap[ml.file] = {
+        const entry = {
           leftAdded: ml.leftAdded || [],
           leftRemoved: ml.leftRemoved || [],
           rightAdded: ml.rightAdded || [],
           rightRemoved: ml.rightRemoved || [],
         };
+
+        // Store with original file path
+        modifiedLinesMap[ml.file] = entry;
+
+        // Also store with normalized file key for classification lookup
+        const normalizedKey = normalizeFileKey(ml.file);
+        if (normalizedKey && normalizedKey !== ml.file) {
+          modifiedLinesMap[normalizedKey] = entry;
+        }
       });
 
       // Classify the dependency based on semantic conflict analysis

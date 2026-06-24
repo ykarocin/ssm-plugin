@@ -344,13 +344,16 @@ export function findStartIndex(
     return 0;
   }
 
-  // Step 1: Location-based ownership
-  const thisFile = normalizeFilePath(thisInterf.location?.file);
+  // Step 1: Location-based ownership — use normalizeFileKey so the lookup key
+  // matches how modifiedLines is keyed (e.g. "TaskService", not "com/example/TaskService.java")
   const thisLine = thisInterf.location?.line;
+  const thisFileKey =
+    normalizeFileKey(thisInterf.location?.file) ??
+    normalizeFileKey(thisInterf.location?.class);
   let owner: "L" | "R" | undefined;
 
-  if (thisFile && thisLine !== undefined) {
-    owner = determineOwner(thisLine, thisFile, modifiedLines);
+  if (thisFileKey && thisLine !== undefined) {
+    owner = determineOwner(thisLine, thisFileKey, modifiedLines);
   }
 
   // Step 2: Stack trace-based ownership (fallback)
