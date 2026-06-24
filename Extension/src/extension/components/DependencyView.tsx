@@ -170,8 +170,19 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
 
       unifyFileNames(L, R, LC, RC);
 
+      // Convert modifiedLines array to map format for classification
+      const modifiedLinesMap: Record<string, any> = {};
+      modifiedLines.forEach((ml) => {
+        modifiedLinesMap[ml.file] = {
+          leftAdded: ml.leftAdded || [],
+          leftRemoved: ml.leftRemoved || [],
+          rightAdded: ml.rightAdded || [],
+          rightRemoved: ml.rightRemoved || [],
+        };
+      });
+
       // Classify the dependency based on semantic conflict analysis
-      const classification = classifyDependency(depCopy);
+      const classification = classifyDependency(depCopy, modifiedLinesMap);
 
       const newGraphData = Grouping_nodes(depCopy, L, R, LC, RC);
       const graphType = getGraphType(depCopy, L, R, LC, RC, classification);

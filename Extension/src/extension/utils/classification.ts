@@ -620,7 +620,7 @@ export function processDFConflict(
   }
 
   // Find Source node (first with "Source" in type)
-  let sourceNode = interference.find((node) =>
+  let sourceNode = interference.find((node: any) =>
     (node.type || "").toLowerCase().includes("source")
   );
   if (!sourceNode) {
@@ -813,7 +813,7 @@ function _extractFiles(sourceNode: any): string[] {
   let lastFileKey: string | undefined;
 
   // Process stack trace frames
-  for (const frame of stackTrace) {
+  for (const frame of stackTrace as any[]) {
     const line = frame.line ?? frame.location?.line;
     if (line === undefined || line === null || line < 0 || isNaN(line)) {
       continue;
@@ -955,13 +955,13 @@ export function processCFConflict(
   }
 
   // Find nodes by type
-  let source1Node = interference.find((node) =>
+  let source1Node = interference.find((node: any) =>
     (node.type || "").toLowerCase().includes("source1")
   );
-  let source2Node = interference.find((node) =>
+  let source2Node = interference.find((node: any) =>
     (node.type || "").toLowerCase().includes("source2")
   );
-  let confluenceNode = interference.find((node) =>
+  let confluenceNode = interference.find((node: any) =>
     (node.type || "").toLowerCase().includes("confluence")
   );
 
