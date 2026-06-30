@@ -11,7 +11,7 @@ import SettingsService from "../../services/SettingsService";
 import { getClassFromJavaFilename, ensureJavaExtension } from "@extension/utils";
 import { Node } from "./Graph/Node";
 import { getDiffLine } from "./Diff/diff-navigation";
-import { FileObject, Grouping_nodes, getGraphType } from "./grouping";
+import { FileObject, Grouping_nodes, getGraphType, reorderFilesForLayout } from "./grouping";
 import { extractNodesFromDependency } from "../utils/extractNode";
 import { classifyDependency, normalizeFileKey } from "../utils/classification";
 import type { ClassificationResult } from "../models/Classification";
@@ -198,8 +198,27 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
       const graphType = getGraphType(depCopy, L, R, LC, RC, classification);
 
       if (newGraphData && graphType) {
+        const c = classification;
+        let classReason = 'n/a';
+        if (c && !c.label.startsWith('Error:')) {
+          if (c.conflictType === 'CF') {
+            classReason = `source1=[${(c.source1Files ?? []).join('→')}] source2=[${(c.source2Files ?? []).join('→')}] confluence=${c.confluenceFile ?? '?'}`;
+          } else {
+            classReason = `left=[${(c.leftFiles ?? []).join('→')}] right=[${(c.rightFiles ?? []).join('→')}]`;
+          }
+        } else if (c?.label.startsWith('Error:')) {
+          classReason = c.label;
+        }
+        console.log(
+          `[Graph] conflict #${index}\n` +
+          `  type        : ${depCopy.type}\n` +
+          `  class       : ${c?.label ?? 'none'}\n` +
+          `  reason      : ${classReason}\n` +
+          `  layout      : ${graphType.layout.rows}r × ${graphType.layout.columns}c\n` +
+          `  positions   : ${JSON.stringify(graphType.positions)}`
+        );
         const graphDataObj = {
-          files: newGraphData,
+          files: reorderFilesForLayout(newGraphData, graphType.positions),
           graphType,
           dependencyType: depCopy.type,
           classification,

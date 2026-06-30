@@ -315,5 +315,52 @@ const getGraphType = (
   return null;
 };
 
+/**
+ * Reorder files so that nodes from the same file end up in the same column.
+ *
+ * Scans the positions array for consecutive same-column slot pairs (valid starts
+ * for a 2-node file). 2-node files are placed at those starts; 1-node files fill
+ * the remaining slots in their original relative order.
+ */
+export function reorderFilesForLayout(
+  files: FileObject[],
+  positions: [number, number][]
+): FileObject[] {
+  if (files.length <= 1) return files;
+
+  // Slots where a 2-node file can start (consecutive positions in the same column)
+  const validTwoNodeStarts = new Set<number>();
+  for (let i = 0; i + 1 < positions.length; i++) {
+    if (positions[i][1] === positions[i + 1][1]) {
+      validTwoNodeStarts.add(i);
+    }
+  }
+
+  const twoNodeQ = files.filter(f => f.nodes.length >= 2);
+  const oneNodeQ = files.filter(f => f.nodes.length < 2);
+
+  const result: FileObject[] = [];
+  let slot = 0;
+
+  while (slot < positions.length && (twoNodeQ.length > 0 || oneNodeQ.length > 0)) {
+    if (twoNodeQ.length > 0 && validTwoNodeStarts.has(slot)) {
+      result.push(twoNodeQ.shift()!);
+      slot += 2;
+    } else if (oneNodeQ.length > 0) {
+      result.push(oneNodeQ.shift()!);
+      slot += 1;
+    } else {
+      // 2-node file, no valid start here, no 1-node filler — place it anyway
+      result.push(twoNodeQ.shift()!);
+      slot += 2;
+    }
+  }
+
+  // Should not happen with correct layouts, but avoid silently dropping files
+  result.push(...twoNodeQ, ...oneNodeQ);
+
+  return result;
+}
+
 export { Grouping_nodes, getGraphType };
 export type { FileObject };
