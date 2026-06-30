@@ -15,6 +15,7 @@ import { FileObject, Grouping_nodes, getGraphType, reorderFilesForLayout } from 
 import { extractNodesFromDependency } from "../utils/extractNode";
 import { classifyDependency, normalizeFileKey } from "../utils/classification";
 import type { ClassificationResult } from "../models/Classification";
+import FileTree from "./Diff/FileTree";
 
 const analysisService = new AnalysisService();
 const settingsService = new SettingsService();
@@ -405,29 +406,32 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
             />
           ) : null}
           <div id="dependency-plugin-content" className="tw-flex tw-flex-row tw-justify-between">
-            {dependencies.length ? (
-              <div
-                id="dependency-container"
-                className="tw-min-w-fit tw-max-w-[20%] tw-h-fit tw-mr-5 tw-py-2 tw-px-3 tw-border tw-border-gray-700 tw-rounded">
-                <h3 className="tw-mb-5 tw-text-red-600">
-                  {dependencies.length} dependenc
-                  {dependencies.length > 1 ? "ies" : "y"} reported:
-                </h3>
-                <ul className="tw-list-none">
-                  {dependencies.map((d, i) => {
-                    return (
-                      <li>
-                        <Conflict key={i} index={i} dependency={d} setConflict={handleConflictSelect} isActive={activeConflict === i} />
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ) : diff ? (
-              <div id="no-dependencies">
-                <p>No conflicts were found during the analysis</p>
-              </div>
-            ) : null}
+            <div className="tw-flex tw-flex-col tw-gap-3 tw-mr-5 tw-sticky tw-top-20 tw-self-start tw-min-w-[200px] tw-max-w-[240px]">
+              {dependencies.length ? (
+                <div
+                  id="dependency-container"
+                  className="tw-h-fit tw-py-2 tw-px-3 tw-border tw-border-gray-700 tw-rounded">
+                  <h3 className="tw-mb-5 tw-text-red-600">
+                    {dependencies.length} dependenc
+                    {dependencies.length > 1 ? "ies" : "y"} reported:
+                  </h3>
+                  <ul className="tw-list-none">
+                    {dependencies.map((d, i) => {
+                      return (
+                        <li>
+                          <Conflict key={i} index={i} dependency={d} setConflict={handleConflictSelect} isActive={activeConflict === i} />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : diff ? (
+                <div id="no-dependencies">
+                  <p>No conflicts were found during the analysis</p>
+                </div>
+              ) : null}
+              {diff && <FileTree diff={diff} />}
+            </div>
 
             {diff ? (
               <div id="content-container" className="tw-w-full">

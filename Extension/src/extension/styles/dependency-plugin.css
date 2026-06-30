@@ -227,3 +227,101 @@
     transform: rotate(360deg);
   }
 }
+
+/* File Tree */
+.file-tree {
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  border: 1px solid #3d444d;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.ft-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid #3d444d;
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.ft-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e6edf3;
+}
+
+.ft-body {
+  padding: 4px 0;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.ft-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  min-height: 26px;
+  transition: background-color 0.1s ease;
+}
+
+.ft-row:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.ft-dir-row {
+  cursor: pointer;
+  user-select: none;
+}
+
+.ft-chevron {
+  flex-shrink: 0;
+  width: 12px;
+  font-size: 10px;
+  color: #8b949e;
+  text-align: center;
+}
+
+.ft-icon {
+  flex-shrink: 0;
+  color: #8b949e;
+}
+
+.ft-dir-icon {
+  color: #54aeff;
+}
+
+.ft-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ft-dirname {
+  color: #e6edf3;
+}
+
+.ft-filename {
+  color: #e6edf3;
+  text-decoration: none;
+}
+
+.ft-filename:hover {
+  color: #58a6ff;
+  text-decoration: underline;
+}
+
+.ft-stats {
+  flex-shrink: 0;
+  display: flex;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.ft-added {
+  color: #3fb950;
+}
+
+.ft-deleted {
+  color: #f85149;
+}

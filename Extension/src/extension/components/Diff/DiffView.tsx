@@ -11,7 +11,7 @@ export const isDarkMode = () => {
 
 const diffConfig: Diff2HtmlConfig = {
   outputFormat: "line-by-line",
-  drawFileList: true,
+  drawFileList: false,
   renderNothingWhenEmpty: true,
   matching: "words",
   diffStyle: "word",

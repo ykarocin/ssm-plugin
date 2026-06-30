@@ -99,6 +99,10 @@
   flex-direction: row !important;
 }
 
+.tw-flex-col {
+  flex-direction: column !important;
+}
+
 .tw-justify-between {
   justify-content: space-between !important;
 }
@@ -113,4 +117,17 @@
 
 .tw-gap-8 {
   gap: 2rem /* 32px */ !important;
+}
+
+.tw-sticky {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+}
+
+.tw-top-20 {
+  top: 5rem /* 80px */ !important;
+}
+
+.tw-self-start {
+  align-self: flex-start !important;
 }
