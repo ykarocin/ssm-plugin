@@ -337,6 +337,13 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     };
   }, [owner, repository, pull_number, loading]);
 
+  // Auto-select the first conflict once its graph data is ready
+  useEffect(() => {
+    if (activeConflict === null && allGraphsData.has(0)) {
+      setActiveConflict(0);
+    }
+  }, [allGraphsData]);
+
   // update the active conflict
   useEffect(() => {
     if (activeConflict !== null) {
