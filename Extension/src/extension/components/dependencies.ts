@@ -52,10 +52,13 @@ const getLastValidNode = (stackTrace: tracedNode[], maxDepth: number) => {
 
 const updateLocationFromStackTrace = (dep: dependency, options?: { inplace?: boolean; mode?: "default" | "deep" }) => {
   console.log("Updating location from stack trace");
+  const hasValidStackTrace = (st: Array<tracedNode> | undefined): st is Array<tracedNode> =>
+    !!(st && st.length > 0);
+
   if (
-    !dep.body.interference[0].stackTrace ||
-    (dep.type.startsWith("CONFLUENCE") && !dep.body.interference[1].stackTrace) ||
-    (!dep.type.startsWith("CONFLUENCE") && !dep.body.interference[dep.body.interference.length - 1].stackTrace)
+    !hasValidStackTrace(dep.body.interference[0].stackTrace) ||
+    (dep.type.startsWith("CONFLUENCE") && !hasValidStackTrace(dep.body.interference[1].stackTrace)) ||
+    (!dep.type.startsWith("CONFLUENCE") && !hasValidStackTrace(dep.body.interference[dep.body.interference.length - 1].stackTrace))
   )
     throw new Error("File not found: Invalid stack trace");
 

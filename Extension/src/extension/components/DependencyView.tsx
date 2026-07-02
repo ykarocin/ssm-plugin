@@ -110,15 +110,19 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     try {
       const { L, R } = extractNodesFromDependency(dep);
       
-      // Build dependency copy for processing
+      // Build dependency copy for processing; fall back to location attributes if no stack trace
       let depCopy = JSON.parse(JSON.stringify(dep));
-      depCopy = updateLocationFromStackTrace(depCopy, { inplace: false, mode: "deep" });
+      try {
+        depCopy = updateLocationFromStackTrace(depCopy, { inplace: false, mode: "deep" });
+      } catch {
+        // No valid stack trace; depCopy retains original location values
+      }
 
       const { L: LC, R: RC } = extractNodesFromDependency(depCopy);
 
       // Update L node from stack trace if needed
       if (getClassFromJavaFilename(L.fileName) === getClassFromJavaFilename(LC.fileName) && L.numberHighlight === LC.numberHighlight) {
-        L.fileName = ensureJavaExtension(depCopy.body.interference[0].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? L.fileName);
+        L.fileName = ensureJavaExtension(depCopy.body.interference[0].stackTrace?.at(0)?.class?.replaceAll(".", "/") ?? L.fileName);
         if (depCopy.body.interference[0].stackTrace?.at(0)?.line) {
           L.numberHighlight = depCopy.body.interference[0].stackTrace?.at(0)?.line ?? L.numberHighlight;
           let L_Row;
@@ -132,7 +136,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
 
       // Update R node from stack trace if needed
       if (getClassFromJavaFilename(R.fileName) === getClassFromJavaFilename(RC.fileName) && R.numberHighlight === RC.numberHighlight) {
-        R.fileName = ensureJavaExtension(depCopy.body.interference[depCopy.body.interference.length - 1].stackTrace?.at(0)?.class.replaceAll(".", "/") ?? R.fileName);
+        R.fileName = ensureJavaExtension(depCopy.body.interference[depCopy.body.interference.length - 1].stackTrace?.at(0)?.class?.replaceAll(".", "/") ?? R.fileName);
         if (depCopy.body.interference[depCopy.body.interference.length - 1].stackTrace?.at(0)?.line) {
           R.numberHighlight = depCopy.body.interference[depCopy.body.interference.length - 1].stackTrace?.at(0)?.line ?? R.numberHighlight;
           let R_Row;
