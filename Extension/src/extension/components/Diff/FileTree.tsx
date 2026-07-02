@@ -73,9 +73,12 @@ function TreeNodeView({ node, depth }: TreeNodeViewProps) {
           href={node.href}
           onClick={e => {
             e.preventDefault();
-            if (node.href) {
-              document.querySelector(node.href)?.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
+            if (!node.href) return;
+            const target = document.querySelector<HTMLElement>(node.href);
+            if (!target) return;
+            const graphWrap = document.querySelector<HTMLElement>(".graph-sticky-wrap");
+            const topExclusion = graphWrap ? graphWrap.getBoundingClientRect().bottom : 0;
+            window.scrollBy({ top: target.getBoundingClientRect().top - topExclusion - 12, behavior: "smooth" });
           }}
         >
           {node.name}

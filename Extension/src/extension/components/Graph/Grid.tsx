@@ -102,7 +102,7 @@ const Grid = forwardRef<gridRef, GridProps>(({ width, height, layout }, ref): JS
       ref={containerRef}
       id= "grid-container"
       style={{
-        height: "520px",
+        height: `${gridLayout.rows * 200}px`,
         display: "grid",
         gridTemplateRows: rowSizes.map((size) => `${size * 100}%`).join(" "),
         gridTemplateColumns: columnSizes.map((size) => `${size * 100}%`).join(" "),

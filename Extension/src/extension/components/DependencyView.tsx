@@ -75,7 +75,9 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
    */
   const [loading, setloading] = useState<boolean>(true);
   const [showBackToTop, setShowBackToTop] = useState<boolean>(false);
+  const [stickyOffset, setStickyOffset] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pluginRef = useRef<HTMLDivElement>(null);
 
   /*
    * conflict properties
@@ -90,6 +92,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [allGraphsData, setAllGraphsData] = useState<Map<number, GraphData>>(new Map()); // Store graph data for all conflicts
   const [loadingConflicts, setLoadingConflicts] = useState<Set<number>>(new Set()); // Track which conflicts are currently loading
+  const [graphMinimized, setGraphMinimized] = useState(false);
 
   /*
    * methods
@@ -97,6 +100,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
 
   const handleConflictSelect = useCallback((index: number) => {
     setActiveConflict(index);
+    setGraphMinimized(false);
   }, []);
 
   // Helper function to load a single graph
@@ -373,16 +377,36 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
   }, [activeConflict, allGraphsData, loadingConflicts, loadGraphForConflict]);
 
   useEffect(() => {
+    const computeGitHubHeaderOffset = (): number => {
+      const plugin = pluginRef.current;
+      let max = 0;
+      document.querySelectorAll<HTMLElement>('header, [class*="AppHeader"], [class*="sticky"]').forEach(el => {
+        if (plugin?.contains(el)) return;
+        const s = getComputedStyle(el);
+        if (s.position !== "fixed" && s.position !== "sticky") return;
+        if (s.display === "none") return;
+        const rect = el.getBoundingClientRect();
+        // element is at the top of the viewport and within the first 300px
+        if (rect.height > 0 && rect.top >= -2 && rect.bottom > 0 && rect.bottom < 300) {
+          max = Math.max(max, rect.bottom);
+        }
+      });
+      return max;
+    };
+
     const handleScroll = () => {
       const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
       setShowBackToTop(scrollTop > 250);
+      setStickyOffset(computeGitHubHeaderOffset());
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll, { passive: true });
     handleScroll();
 
     return () => {
       window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
     };
   }, []);
 
@@ -391,7 +415,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
   };
 
   return (
-    <div id="dependency-plugin">
+    <div id="dependency-plugin" ref={pluginRef}>
       {loading ? (
         <div className="loading-container">
           <div className="spinner"></div> {/* Exibindo o spinner enquanto carrega */}
@@ -410,7 +434,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
             />
           ) : null}
           <div id="dependency-plugin-content" className="tw-flex tw-flex-row tw-justify-between">
-            <div className="tw-flex tw-flex-col tw-gap-3 tw-mr-5 tw-sticky tw-top-20 tw-self-start tw-min-w-[200px] tw-max-w-[240px]">
+            <div className="tw-flex tw-flex-col tw-gap-3 tw-mr-5 tw-sticky tw-self-start tw-min-w-[200px] tw-max-w-[240px]" style={{ top: stickyOffset + 30 }}>
               {dependencies.length ? (
                 <div
                   id="dependency-container"
@@ -439,7 +463,23 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
 
             {diff ? (
               <div id="content-container" className="tw-w-full">
-                {graphData && <GraphView data={graphData.files} conflictGridType={graphData.graphType} dependencyType={graphData.dependencyType} />}
+                {graphData && (
+                  <div className={`graph-sticky-wrap${graphMinimized ? " graph-sticky-wrap--minimized" : ""}`} style={{ top: stickyOffset }}>
+                    <div className="graph-toggle-bar">
+                      <button
+                        type="button"
+                        className="graph-toggle-btn"
+                        onClick={() => setGraphMinimized(m => !m)}
+                        aria-label={graphMinimized ? "Expand graph" : "Minimize graph"}
+                      >
+                        {graphMinimized ? "▾ Show graph" : "▴ Hide graph"}
+                      </button>
+                    </div>
+                    {!graphMinimized && (
+                      <GraphView data={graphData.files} conflictGridType={graphData.graphType} dependencyType={graphData.dependencyType} />
+                    )}
+                  </div>
+                )}
                 <DiffView diff={diff} modifiedLines={modifiedLines} filesFromBase={filesFromBase} />
               </div>
             ) : (
