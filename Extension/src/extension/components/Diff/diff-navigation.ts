@@ -84,6 +84,9 @@ const fadeOutBorder = (diffLine: HTMLElement) => {
 };
 
 const highlight = (diffLine: HTMLElement) => {
+  // add a scroll margin for navigation
+  diffLine.style.scrollMarginBottom = "10px"
+
   // remove previous highlight if exists
   diffLine.classList.remove("pl-line-highlight");
   diffLine.classList.remove("pl-fadeout-border");
@@ -115,7 +118,7 @@ const removeHighlight = (diffLine: HTMLElement) => {
 
 const scrollAndHighlight = (diffLine: HTMLElement) => {
   highlight(diffLine);
-  diffLine.scrollIntoView({ block: "center" });
+  diffLine.scrollIntoView({ block: "end", behavior: "smooth" });
 };
 
 const scrollToDiffLine = (file: string, line: number) => {
