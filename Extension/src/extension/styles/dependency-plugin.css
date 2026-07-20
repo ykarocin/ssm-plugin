@@ -2,6 +2,12 @@
   position: relative; /* Define um referencial fixo para os elementos filhos */
 }
 
+.dependency-list {
+  max-height: 20rem;
+  overflow-y: scroll;
+  scrollbar-width: thin;
+}
+
 .dependency-item {
   margin-bottom: 0.25rem;
   padding: 0.2rem 0.4rem;

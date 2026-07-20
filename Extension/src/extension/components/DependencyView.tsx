@@ -443,7 +443,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
                     {dependencies.length} dependenc
                     {dependencies.length > 1 ? "ies" : "y"} reported:
                   </h3>
-                  <ul className="tw-list-none">
+                  <ul className="tw-list-none dependency-list">
                     {dependencies.map((d, i) => {
                       return (
                         <li>

@@ -77,7 +77,7 @@ export default function Conflict({ index, dependency, setConflict, isActive }: C
       aria-selected={isActive}
       onClick={handleClick}>
       <span>
-        {getDependencyDisplayName(dependency)}
+        {index+1}: {getDependencyDisplayName(dependency)}
       </span>
       
       <p
