@@ -117,6 +117,18 @@ export interface ClassificationResult {
   rightFiles?: string[];
 
   /**
+   * For OA/DF: representative frame (file + line) for each entry in leftFiles, in order.
+   * Lets graph rendering build nodes directly from the same locations classification used,
+   * instead of re-deriving them from the dependency's raw interference array.
+   */
+  leftFrames?: FrameInfo[];
+
+  /**
+   * For OA/DF: representative frame (file + line) for each entry in rightFiles, in order.
+   */
+  rightFrames?: FrameInfo[];
+
+  /**
    * For CF: file sequence for source1
    * Array of 1-2 file keys
    */
@@ -129,10 +141,25 @@ export interface ClassificationResult {
   source2Files?: string[];
 
   /**
+   * For CF: representative frame (file + line) for each entry in source1Files, in order.
+   */
+  source1Frames?: FrameInfo[];
+
+  /**
+   * For CF: representative frame (file + line) for each entry in source2Files, in order.
+   */
+  source2Frames?: FrameInfo[];
+
+  /**
    * For CF: file containing the confluence point
    * Single file key (always 1 element)
    */
   confluenceFile?: string;
+
+  /**
+   * For CF: the frame (file + line) of the confluence point.
+   */
+  confluenceFrame?: FrameInfo;
 
   /**
    * Optional explanation of the classification

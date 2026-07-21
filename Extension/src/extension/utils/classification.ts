@@ -198,6 +198,42 @@ export function framesToFiles(frames: FrameInfo[]): string[] {
 }
 
 /**
+ * Same collapsing rule as framesToFiles, but keeps the representative FrameInfo
+ * (with its line number and raw frame) for each unique consecutive file instead
+ * of just the file key. This is what lets graph rendering build nodes directly
+ * from classification's file sequence instead of re-deriving locations elsewhere.
+ */
+export function framesToRepresentativeFrames(frames: FrameInfo[]): FrameInfo[] {
+  const result: FrameInfo[] = [];
+
+  for (const frame of frames) {
+    if (result.length === 0 || result[result.length - 1].fileKey !== frame.fileKey) {
+      result.push(frame);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Reduce a representative-frame sequence for classification purposes.
+ * Mirrors filesForClassification, but on FrameInfo so line numbers survive.
+ */
+export function framesForClassification(framesFull: FrameInfo[]): FrameInfo[] {
+  if (framesFull.length <= 2) {
+    return framesFull;
+  }
+
+  const reduced = [framesFull[0], framesFull[framesFull.length - 1]];
+
+  if (reduced[0].fileKey === reduced[1].fileKey) {
+    return [reduced[0]];
+  }
+
+  return reduced;
+}
+
+/**
  * Reduce a file list for classification purposes.
  *
  * Rules:
@@ -287,6 +323,39 @@ export function determineOwner(
 }
 
 /**
+ * Determine which branch (L/R) owns an interference node, resolving its own location and
+ * its stack-trace frames against the modified-lines map. Returns undefined when no
+ * modified-lines info is available or no frame lands on an owned line.
+ */
+function determineStackOwner(frames: FrameInfo[], interf: any, modifiedLines: ModifiedLinesMap | undefined) {
+  if (!modifiedLines || frames.length === 0) {
+    return undefined;
+  }
+
+  let owner: "L" | "R" | undefined;
+
+  const thisLine = interf.location?.line;
+  const thisFileKey =
+    normalizeFileKey(interf.location?.file) ??
+    normalizeFileKey(interf.location?.class);
+
+  if (thisFileKey && thisLine !== undefined) {
+    owner = determineOwner(thisLine, thisFileKey, modifiedLines);
+  }
+
+  // Stack trace-based ownership (fallback)
+  for (const frame of frames) {
+    const frameOwner = determineOwner(frame.line, frame.fileKey, modifiedLines);
+    if (frameOwner) {
+      owner = frameOwner;
+      break;
+    }
+  }
+
+  return owner;
+}
+
+/**
  * Find the closest modified line to a given reference line.
  * Returns the distance to the closest modified line.
  * Used for breaking ties in Rule 2 (duplicate last frame removal).
@@ -336,43 +405,14 @@ export function closestModifiedDistance(
  */
 export function findStartIndex(
   frames: FrameInfo[],
-  thisInterf: any,
-  otherInterf: any,
-  modifiedLines: ModifiedLinesMap | undefined
+  modifiedLines: ModifiedLinesMap | undefined,
+  owner: "L" | "R"
 ): number {
   if (!modifiedLines || frames.length === 0) {
     return 0;
   }
 
-  // Step 1: Location-based ownership — use normalizeFileKey so the lookup key
-  // matches how modifiedLines is keyed (e.g. "TaskService", not "com/example/TaskService.java")
-  const thisLine = thisInterf.location?.line;
-  const thisFileKey =
-    normalizeFileKey(thisInterf.location?.file) ??
-    normalizeFileKey(thisInterf.location?.class);
-  let owner: "L" | "R" | undefined;
-
-  if (thisFileKey && thisLine !== undefined) {
-    owner = determineOwner(thisLine, thisFileKey, modifiedLines);
-  }
-
-  // Step 2: Stack trace-based ownership (fallback)
-  if (!owner) {
-    for (const frame of frames) {
-      const frameOwner = determineOwner(frame.line, frame.fileKey, modifiedLines);
-      if (frameOwner) {
-        owner = frameOwner;
-        break;
-      }
-    }
-  }
-
-  // Step 3: Default to 'L'
-  if (!owner) {
-    owner = "L";
-  }
-
-  // Step 4: Find first frame in owner's modified lines
+  // Find first frame in owner's modified lines
   for (let i = 0; i < frames.length; i++) {
     const frameOwner = determineOwner(frames[i].line, frames[i].fileKey, modifiedLines);
     if (frameOwner === owner) {
@@ -394,6 +434,8 @@ export function findStartIndex(
 export function filterDuplicateLastFrames(
   leftFrames: FrameInfo[],
   rightFrames: FrameInfo[],
+  lowner: "L" | "R",
+  rowner: "L" | "R",
   modifiedLines: ModifiedLinesMap | undefined
 ): [FrameInfo[], FrameInfo[], string | undefined] {
   // If either list is empty or last frames differ, return as-is
@@ -411,10 +453,10 @@ export function filterDuplicateLastFrames(
   // Frames have same last (fileKey, line) - determine owner
   const owner = determineOwner(lastLeft.line, lastLeft.fileKey, modifiedLines);
 
-  if (owner === "L") {
+  if (owner === lowner) {
     // Left owns it, remove from right
     return [leftFrames, rightFrames.slice(0, -1), undefined];
-  } else if (owner === "R") {
+  } else if (owner === rowner) {
     // Right owns it, remove from left
     return [leftFrames.slice(0, -1), rightFrames, undefined];
   }
@@ -470,26 +512,34 @@ export function filterDuplicateLastFrames(
 }
 
 /**
- * Main pipeline for OA/DF conflicts.
- *
- * Given two interference nodes, produce the file sequences used for classification.
- *
- * Steps:
- * 1. Extract frames from both nodes
- * 2. Check for unmodified stack trace error
- * 3. Check for symmetric (identical) stacks error
- * 4. Apply Rule 1 to trim frames
- * 5. Apply Rule 2 to remove duplicate last frames
- * 6. Build full and classification file lists
+ * Result of processing an interference pair (OA/DF): the extracted file sequences
+ * (full and reduced-for-classification), their representative frames, and any error.
  */
 export interface ProcessedInterferencePair {
   leftFilesFull: string[];
   rightFilesFull: string[];
   leftFilesForClass: string[];
   rightFilesForClass: string[];
+  /** Representative frame (file + line) for each entry in leftFilesFull, in order. */
+  leftFrames: FrameInfo[];
+  /** Representative frame (file + line) for each entry in rightFilesFull, in order. */
+  rightFrames: FrameInfo[];
   error?: string;
 }
 
+/**
+ * Main pipeline for OA/DF conflicts.
+ *
+ * Given two interference nodes, produce the file sequences used for classification.
+ *
+ * Steps (in execution order):
+ * 1. Extract frames from both nodes
+ * 2. Check for unmodified stack trace error
+ * 3. Apply Rule 1 to trim frames (ownership + start-index)
+ * 4. Apply Rule 2 to remove duplicate last frames
+ * 5. Check for symmetric (identical) stacks error
+ * 6. Build full and classification file lists
+ */
 export function processInterferencePair(
   leftInterf: any,
   rightInterf: any,
@@ -514,37 +564,40 @@ export function processInterferencePair(
         rightFilesFull: [],
         leftFilesForClass: [],
         rightFilesForClass: [],
+        leftFrames: [],
+        rightFrames: [],
         error: "unmodified_stack_trace",
       };
     }
   }
 
-  // Step 3: Symmetric check
-  const leftPairs = leftFrames.map((f) => `${f.fileKey}:${f.line}`);
-  const rightPairs = rightFrames.map((f) => `${f.fileKey}:${f.line}`);
-  if (
-    leftPairs.length === rightPairs.length &&
-    leftPairs.every((p, i) => p === rightPairs[i])
-  ) {
+  // Step 3: Apply Rule 1 (start index trimming)
+  const lowner = determineStackOwner(leftFrames, leftInterf, modifiedLines);
+  if (!lowner) {
     return {
       leftFilesFull: [],
       rightFilesFull: [],
       leftFilesForClass: [],
       rightFilesForClass: [],
-      error: "symmetric_modified_lines",
+      leftFrames: [],
+      rightFrames: [],
+      error: "invalid_ownership",
     };
   }
 
-  // Step 4: Apply Rule 1 (start index trimming)
-  const lstart = findStartIndex(leftFrames, leftInterf, rightInterf, modifiedLines);
-  const rstart = findStartIndex(rightFrames, rightInterf, leftInterf, modifiedLines);
+  const rowner = lowner === "L" ? "R" : "L";
+                    
+  const lstart = findStartIndex(leftFrames, modifiedLines, lowner);
+  const rstart = findStartIndex(rightFrames, modifiedLines, rowner);
   leftFrames = leftFrames.slice(lstart);
   rightFrames = rightFrames.slice(rstart);
 
-  // Step 5: Apply Rule 2 (duplicate last frame removal)
+  // Step 4: Apply Rule 2 (duplicate last frame removal)
   const [leftFiltered, rightFiltered, rule2Error] = filterDuplicateLastFrames(
     leftFrames,
     rightFrames,
+    lowner,
+    rowner,
     modifiedLines
   );
 
@@ -554,7 +607,27 @@ export function processInterferencePair(
       rightFilesFull: [],
       leftFilesForClass: [],
       rightFilesForClass: [],
+      leftFrames: [],
+      rightFrames: [],
       error: rule2Error,
+    };
+  }
+
+  // Step 5: Symmetric check
+  const leftPairs = leftFiltered.map((f) => `${f.fileKey}:${f.line}`);
+  const rightPairs = rightFiltered.map((f) => `${f.fileKey}:${f.line}`);
+  if (
+    leftPairs.length === rightPairs.length &&
+    leftPairs.every((p, i) => p === rightPairs[i])
+  ) {
+    return {
+      leftFilesFull: [],
+      rightFilesFull: [],
+      leftFilesForClass: [],
+      rightFilesForClass: [],
+      leftFrames: [],
+      rightFrames: [],
+      error: "symmetric_modified_lines",
     };
   }
 
@@ -563,12 +636,16 @@ export function processInterferencePair(
   const rightFilesFull = framesToFiles(rightFiltered);
   const leftFilesForClass = filesForClassification(leftFilesFull);
   const rightFilesForClass = filesForClassification(rightFilesFull);
+  const leftRepFrames = framesToRepresentativeFrames(leftFiltered);
+  const rightRepFrames = framesToRepresentativeFrames(rightFiltered);
 
   return {
     leftFilesFull,
     rightFilesFull,
     leftFilesForClass,
     rightFilesForClass,
+    leftFrames: leftRepFrames,
+    rightFrames: rightRepFrames,
   };
 }
 
@@ -590,6 +667,8 @@ export function processOAConflict(
       rightFilesFull: [],
       leftFilesForClass: [],
       rightFilesForClass: [],
+      leftFrames: [],
+      rightFrames: [],
       error: "insufficient_interference_nodes",
     };
   }
@@ -598,6 +677,46 @@ export function processOAConflict(
   const rightInterf = interference[interference.length - 1];
 
   return processInterferencePair(leftInterf, rightInterf, modifiedLines);
+}
+
+/**
+ * Select the Source/Sink interference nodes for a DF conflict.
+ *
+ * This is the single source of truth for "which nodes represent a DF conflict's
+ * endpoints" - used both by classification (processDFConflict) and by the graph
+ * rendering pipeline (buildNodesFromClassification), so the two can never disagree
+ * about which nodes they're looking at.
+ *
+ * - left (Source): first node with "source" in type, fallback to first node
+ * - right (Sink): last node with "sink" in type, fallback to last node
+ */
+export function selectDFNodes(dependency: any): { sourceNode: any; sinkNode: any } | undefined {
+  const interference = dependency.body?.interference || [];
+  if (interference.length < 2) {
+    return undefined;
+  }
+
+  // Find Source node (first with "source" in type)
+  let sourceNode = interference.find((node: any) =>
+    (node.type || "").toLowerCase().includes("source")
+  );
+  if (!sourceNode) {
+    sourceNode = interference[0];
+  }
+
+  // Find Sink node (last with "sink" in type, scanning in reverse)
+  let sinkNode: any = null;
+  for (let i = interference.length - 1; i >= 0; i--) {
+    if ((interference[i].type || "").toLowerCase().includes("sink")) {
+      sinkNode = interference[i];
+      break;
+    }
+  }
+  if (!sinkNode) {
+    sinkNode = interference[interference.length - 1];
+  }
+
+  return { sourceNode, sinkNode };
 }
 
 /**
@@ -611,38 +730,20 @@ export function processDFConflict(
   dependency: any,
   modifiedLines: ModifiedLinesMap | undefined
 ): ProcessedInterferencePair {
-  const interference = dependency.body?.interference || [];
-  if (interference.length < 2) {
+  const selected = selectDFNodes(dependency);
+  if (!selected) {
     return {
       leftFilesFull: [],
       rightFilesFull: [],
       leftFilesForClass: [],
       rightFilesForClass: [],
+      leftFrames: [],
+      rightFrames: [],
       error: "insufficient_interference_nodes",
     };
   }
 
-  // Find Source node (first with "Source" in type)
-  let sourceNode = interference.find((node: any) =>
-    (node.type || "").toLowerCase().includes("source")
-  );
-  if (!sourceNode) {
-    sourceNode = interference[0];
-  }
-
-  // Find Sink node (last with "Sink" in type, scanning in reverse)
-  let sinkNode: any = null;
-  for (let i = interference.length - 1; i >= 0; i--) {
-    if ((interference[i].type || "").toLowerCase().includes("sink")) {
-      sinkNode = interference[i];
-      break;
-    }
-  }
-  if (!sinkNode) {
-    sinkNode = interference[interference.length - 1];
-  }
-
-  return processInterferencePair(sourceNode, sinkNode, modifiedLines);
+  return processInterferencePair(selected.sourceNode, selected.sinkNode, modifiedLines);
 }
 
 // ============================================================================
@@ -929,32 +1030,33 @@ export interface ProcessedCFConflict {
   source1Files: string[];
   source2Files: string[];
   confluenceFile: string;
+  /** Representative frame (file + line) for each entry in source1Files, in order. */
+  source1Frames?: FrameInfo[];
+  /** Representative frame (file + line) for each entry in source2Files, in order. */
+  source2Frames?: FrameInfo[];
+  /** The frame (file + line) of the confluence point. */
+  confluenceFrame?: FrameInfo;
   error?: string;
 }
 
 /**
- * CF-specific entry point for conflict processing.
+ * Select the source1/source2/confluence interference nodes for a CF conflict.
  *
- * Extracts source1, source2, and confluence nodes by type matching.
- * Applies CF-specific filtering and reduction.
+ * Single source of truth for "which nodes represent a CF conflict's endpoints",
+ * used by classification (processCFConflict). CF graph rendering doesn't consume
+ * this yet (buildNodesFromClassification only handles OA/DF), but it's kept
+ * separate from processCFConflict so a future CF graph pipeline can reuse it.
  *
- * Node selection:
  * - source1: node with "source1" in type, fallback to first unassigned
  * - source2: node with "source2" in type, fallback to second unassigned
  * - confluence: node with "confluence" in type, fallback to third unassigned
  */
-export function processCFConflict(
-  dependency: any,
-  modifiedLines: ModifiedLinesMap | undefined
-): ProcessedCFConflict {
+export function selectCFNodes(
+  dependency: any
+): { source1Node: any; source2Node: any; confluenceNode: any } | undefined {
   const interference = dependency.body?.interference || [];
   if (interference.length < 3) {
-    return {
-      source1Files: [],
-      source2Files: [],
-      confluenceFile: "",
-      error: "insufficient_interference_nodes",
-    };
+    return undefined;
   }
 
   // Find nodes by type
@@ -1001,6 +1103,26 @@ export function processCFConflict(
   }
 
   if (!source1Node || !source2Node || !confluenceNode) {
+    return undefined;
+  }
+
+  return { source1Node, source2Node, confluenceNode };
+}
+
+/**
+ * CF-specific entry point for conflict processing.
+ *
+ * Selects the source1, source2, and confluence nodes (via selectCFNodes), then
+ * applies CF-specific filtering and reduction to produce the file sequences and
+ * representative frames used for classification.
+ */
+export function processCFConflict(
+  dependency: any,
+  modifiedLines: ModifiedLinesMap | undefined
+): ProcessedCFConflict {
+  const selected = selectCFNodes(dependency);
+
+  if (!selected) {
     return {
       source1Files: [],
       source2Files: [],
@@ -1008,6 +1130,8 @@ export function processCFConflict(
       error: "missing_cf_nodes",
     };
   }
+
+  const { source1Node, source2Node, confluenceNode } = selected;
 
   // Extract file sequences
   let source1FramesRaw = getFramesWithLines(source1Node);
@@ -1085,14 +1209,21 @@ export function processCFConflict(
     source1Files: source1FilesReduced,
     source2Files: source2FilesReduced,
     confluenceFile,
+    source1Frames: framesForClassification(framesToRepresentativeFrames(source1Frames)),
+    source2Frames: framesForClassification(framesToRepresentativeFrames(source2Frames)),
+    confluenceFrame: {
+      fileKey: confluenceFile,
+      line: confluenceNode.location.line,
+      frame: confluenceNode.location,
+    },
   };
 }
 
 /**
  * Classify a CF conflict based on file sequences.
  *
- * Current implementation returns "Other cases" as a placeholder.
- * Full classification with all 32 CF types will be implemented iteratively.
+ * Placeholder implementation: always returns CF_A1. The full 32-type CF
+ * classification is not yet implemented.
  *
  * TODO: Implement all 32 CF classification rules per CONFLICT_CLASSIFICATION.md
  */
@@ -1101,8 +1232,6 @@ export function classifyCF(
   source2Files: string[],
   confluenceFile: string
 ): CFType | `Error: ${string}` {
-  // Placeholder implementation - returns "Other cases" for all CF conflicts
-  // TODO: Implement full 32-type CF classification with rule matching
   return "CF_A1"; // Temporary: assume all are simple single-file cases for now
 }
 
@@ -1116,6 +1245,27 @@ export function classifyCF(
  *
  * Returns ClassificationResult with all metadata.
  */
+/**
+ * Last-filter check: the graph's L and R nodes must each sit on a modified line, and on
+ * *opposite* sides of the merge - if L is on a line the right branch added/removed, R must
+ * be on a line the left branch added/removed (or vice versa). A conflict where both
+ * endpoints trace back to the same side isn't a genuine two-sided conflict.
+ */
+function hasOppositeSideEndpoints(
+  leftFrame: FrameInfo | undefined,
+  rightFrame: FrameInfo | undefined,
+  modifiedLines: ModifiedLinesMap | undefined
+): boolean {
+  if (!leftFrame || !rightFrame) {
+    return false;
+  }
+
+  const leftOwner = determineOwner(leftFrame.line, leftFrame.fileKey, modifiedLines);
+  const rightOwner = determineOwner(rightFrame.line, rightFrame.fileKey, modifiedLines);
+
+  return !!leftOwner && !!rightOwner && leftOwner !== rightOwner;
+}
+
 export function classifyDependency(
   dependency: any,
   modifiedLines: ModifiedLinesMap | undefined
@@ -1150,6 +1300,9 @@ export function classifyDependency(
         source1Files: processed.source1Files,
         source2Files: processed.source2Files,
         confluenceFile: processed.confluenceFile,
+        source1Frames: processed.source1Frames,
+        source2Frames: processed.source2Frames,
+        confluenceFrame: processed.confluenceFrame,
       };
     } else if (depType.includes("CONFLICT")) {
       // DF Classification
@@ -1162,6 +1315,13 @@ export function classifyDependency(
         };
       }
 
+      if (!hasOppositeSideEndpoints(processed.leftFrames[0], processed.rightFrames[0], modifiedLines)) {
+        return {
+          conflictType: "DF",
+          label: "Error: missing both modified lines flows",
+        };
+      }
+
       const label = classifyDF(processed.leftFilesForClass, processed.rightFilesForClass);
 
       return {
@@ -1169,6 +1329,8 @@ export function classifyDependency(
         label,
         leftFiles: processed.leftFilesFull,
         rightFiles: processed.rightFilesFull,
+        leftFrames: processed.leftFrames,
+        rightFrames: processed.rightFrames,
       };
     } else if (depType.includes("OA")) {
       // OA Classification
@@ -1181,6 +1343,13 @@ export function classifyDependency(
         };
       }
 
+      if (!hasOppositeSideEndpoints(processed.leftFrames[0], processed.rightFrames[0], modifiedLines)) {
+        return {
+          conflictType: "OA",
+          label: "Error: missing both modified lines flows",
+        };
+      }
+
       const label = classifyOA(processed.leftFilesForClass, processed.rightFilesForClass);
 
       return {
@@ -1188,6 +1357,8 @@ export function classifyDependency(
         label,
         leftFiles: processed.leftFilesFull,
         rightFiles: processed.rightFilesFull,
+        leftFrames: processed.leftFrames,
+        rightFrames: processed.rightFrames,
       };
     } else {
       // Unknown type

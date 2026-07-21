@@ -8,13 +8,10 @@ import GraphView, { ConflictGridType } from "./Graph/GraphView";
 import "../styles/dependency-plugin.css";
 import SettingsButton from "./Settings/Settings-button";
 import SettingsService from "../../services/SettingsService";
-import { getClassFromJavaFilename, ensureJavaExtension } from "@extension/utils";
-import { Node } from "./Graph/Node";
-import { getDiffLine } from "./Diff/diff-navigation";
 import { FileObject, Grouping_nodes, getGraphType, reorderFilesForLayout } from "./grouping";
-import { extractNodesFromDependency } from "../utils/extractNode";
+import { buildNodesFromClassification } from "../utils/extractNode";
 import { classifyDependency, normalizeFileKey } from "../utils/classification";
-import type { ClassificationResult } from "../models/Classification";
+import type { ClassificationResult, FrameInfo } from "../models/Classification";
 import FileTree from "./Diff/FileTree";
 
 const analysisService = new AnalysisService();
@@ -26,6 +23,64 @@ async function getAnalysisOutput(owner: string, repository: string, pull_number:
 
 async function getSettings(owner: string, repository: string, pull_number: number) {
   return await settingsService.getSettings(owner, repository, pull_number);
+}
+
+// Convert modifiedLines array to map format for classification.
+// Stores both the original file path and its normalized key for lookup flexibility.
+function buildModifiedLinesMap(modifiedLines: modLine[]): Record<string, any> {
+  const modifiedLinesMap: Record<string, any> = {};
+  modifiedLines.forEach((ml) => {
+    const entry = {
+      leftAdded: ml.leftAdded || [],
+      leftRemoved: ml.leftRemoved || [],
+      rightAdded: ml.rightAdded || [],
+      rightRemoved: ml.rightRemoved || [],
+    };
+
+    modifiedLinesMap[ml.file] = entry;
+
+    const normalizedKey = normalizeFileKey(ml.file);
+    if (normalizedKey && normalizedKey !== ml.file) {
+      modifiedLinesMap[normalizedKey] = entry;
+    }
+  });
+  return modifiedLinesMap;
+}
+
+// Best-effort stack-trace-corrected copy of a dependency, used for classification.
+function toClassifiableDependency(dep: dependency): dependency {
+  let depCopy = JSON.parse(JSON.stringify(dep));
+  try {
+    depCopy = updateLocationFromStackTrace(depCopy, { inplace: false, mode: "deep" });
+  } catch {
+    // No valid stack trace; depCopy retains original location values
+  }
+  return depCopy;
+}
+
+// Identifies conflicts that classification considers the same: same conflict shape (label)
+// at the same concrete locations. Two dependencies can differ in their raw stack traces
+// (and so survive filterDuplicatedDependencies) yet still classify down to an identical
+// conflict - those should be treated as duplicates too.
+function classificationDedupeKey(classification: ClassificationResult): string {
+  const frameKey = (frames?: FrameInfo[]) => (frames ?? []).map((f) => `${f.fileKey}:${f.line}`).join(">");
+
+  if (classification.conflictType === "CF") {
+    return [
+      "CF",
+      classification.label,
+      frameKey(classification.source1Frames),
+      frameKey(classification.source2Frames),
+      classification.confluenceFrame ? `${classification.confluenceFrame.fileKey}:${classification.confluenceFrame.line}` : "",
+    ].join("|");
+  }
+
+  return [
+    classification.conflictType,
+    classification.label,
+    frameKey(classification.leftFrames),
+    frameKey(classification.rightFrames),
+  ].join("|");
 }
 
 type GraphData = {
@@ -83,8 +138,6 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
    * conflict properties
    */
   const [activeConflict, setActiveConflict] = useState<number | null>(null); // index of the active conflict on dependencies list
-  // const [leftNode, setLeftNode] = useState<Node | null>(null);
-  // const [rightNode, setRightNode] = useState<Node | null>(null);
 
   /*
    * graph properties
@@ -112,96 +165,21 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
 
     const dep = dependencies[index];
     try {
-      const { L, R } = extractNodesFromDependency(dep);
-      
       // Build dependency copy for processing; fall back to location attributes if no stack trace
-      let depCopy = JSON.parse(JSON.stringify(dep));
-      try {
-        depCopy = updateLocationFromStackTrace(depCopy, { inplace: false, mode: "deep" });
-      } catch {
-        // No valid stack trace; depCopy retains original location values
-      }
+      const depCopy = toClassifiableDependency(dep);
+      const modifiedLinesMap = buildModifiedLinesMap(modifiedLines);
 
-      const { L: LC, R: RC } = extractNodesFromDependency(depCopy);
-
-      // Update L node from stack trace if needed
-      if (getClassFromJavaFilename(L.fileName) === getClassFromJavaFilename(LC.fileName) && L.numberHighlight === LC.numberHighlight) {
-        L.fileName = ensureJavaExtension(depCopy.body.interference[0].stackTrace?.at(0)?.class?.replaceAll(".", "/") ?? L.fileName);
-        if (depCopy.body.interference[0].stackTrace?.at(0)?.line) {
-          L.numberHighlight = depCopy.body.interference[0].stackTrace?.at(0)?.line ?? L.numberHighlight;
-          let L_Row;
-          let newNumber = L.numberHighlight;
-          for (let i = -1; i <= 1; i++) {
-            L_Row = getDiffLine(L.fileName, newNumber + i);
-            L.lines[i + 1] = L_Row.querySelector(".d2h-code-line-ctn")?.textContent || "";
-          }
-        }
-      }
-
-      // Update R node from stack trace if needed
-      if (getClassFromJavaFilename(R.fileName) === getClassFromJavaFilename(RC.fileName) && R.numberHighlight === RC.numberHighlight) {
-        R.fileName = ensureJavaExtension(depCopy.body.interference[depCopy.body.interference.length - 1].stackTrace?.at(0)?.class?.replaceAll(".", "/") ?? R.fileName);
-        if (depCopy.body.interference[depCopy.body.interference.length - 1].stackTrace?.at(0)?.line) {
-          R.numberHighlight = depCopy.body.interference[depCopy.body.interference.length - 1].stackTrace?.at(0)?.line ?? R.numberHighlight;
-          let R_Row;
-          let newNumber = R.numberHighlight;
-          for (let i = -1; i <= 1; i++) {
-            R_Row = getDiffLine(R.fileName, newNumber + i);
-            R.lines[i + 1] = R_Row.querySelector(".d2h-code-line-ctn")?.textContent || "";
-          }
-        }
-      }
-
-      const normalizePath = (p?: string) =>
-        p ? p.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "") : p;
-
-      const unifyFileNames = (...nodes: Array<Node | undefined>) => {
-        const ns = nodes.filter(Boolean) as Node[];
-        ns.forEach((n) => {
-          n.fileName = normalizePath(n.fileName) ?? n.fileName;
-        });
-
-        for (let i = 0; i < ns.length; i++) {
-          for (let j = 0; j < ns.length; j++) {
-            if (i === j) continue;
-            const a = ns[i].fileName;
-            const b = ns[j].fileName;
-            if (!a || !b || a === b) continue;
-
-            if (a.includes(b) && b.length < a.length) {
-              ns[i].fileName = b;
-            } else if (b.includes(a) && a.length < b.length) {
-              ns[j].fileName = a;
-            }
-          }
-        }
-      };
-
-      unifyFileNames(L, R, LC, RC);
-
-      // Convert modifiedLines array to map format for classification
-      // Use both full file path and normalized key for lookup flexibility
-      const modifiedLinesMap: Record<string, any> = {};
-      modifiedLines.forEach((ml) => {
-        const entry = {
-          leftAdded: ml.leftAdded || [],
-          leftRemoved: ml.leftRemoved || [],
-          rightAdded: ml.rightAdded || [],
-          rightRemoved: ml.rightRemoved || [],
-        };
-
-        // Store with original file path
-        modifiedLinesMap[ml.file] = entry;
-
-        // Also store with normalized file key for classification lookup
-        const normalizedKey = normalizeFileKey(ml.file);
-        if (normalizedKey && normalizedKey !== ml.file) {
-          modifiedLinesMap[normalizedKey] = entry;
-        }
-      });
-
-      // Classify the dependency based on semantic conflict analysis
+      // Classify the dependency first, then build the graph's nodes directly from the
+      // classification result - the graph can never show endpoints classification didn't
+      // actually reason about.
       const classification = classifyDependency(depCopy, modifiedLinesMap);
+
+      const nodes = buildNodesFromClassification(classification);
+      if (!nodes) {
+        callback?.(null);
+        return;
+      }
+      const { L, R, LC, RC } = nodes;
 
       const newGraphData = Grouping_nodes(depCopy, L, R, LC, RC);
       const graphType = getGraphType(depCopy, L, R, LC, RC, classification);
@@ -287,6 +265,22 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
             updateLocationFromStackTrace(dep, { inplace: true });
         });
         dependencies = filterDuplicatedDependencies(dependencies);
+
+        // Drop conflicts classification can't make sense of (error label) - there's no
+        // usable graph for them, so they shouldn't clutter the conflict list either.
+        // Also drop conflicts that classify down to the same shape at the same locations
+        // as one already kept, even if their raw stack traces differ.
+        const modifiedLinesMap = buildModifiedLinesMap(response.data.modifiedLines ?? []);
+        const seenClassificationKeys = new Set<string>();
+        dependencies = dependencies.filter((dep) => {
+          const classification = classifyDependency(toClassifiableDependency(dep), modifiedLinesMap);
+          if (classification.label.startsWith("Error:")) return false;
+
+          const key = classificationDedupeKey(classification);
+          if (seenClassificationKeys.has(key)) return false;
+          seenClassificationKeys.add(key);
+          return true;
+        });
 
         setDependencies(
           dependencies.sort((a, b) => {

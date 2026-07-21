@@ -1,65 +1,108 @@
-import { dependency } from "@src/models/AnalysisOutput";
 import { getDiffLine } from "../components/Diff/diff-navigation";
 import { Node } from "../components/Graph/Node";
-import { updateLocationFromStackTrace } from "../components/dependencies";
+import { ensureJavaExtension } from "@extension/utils";
+import { framesForClassification } from "./classification";
+import type { ClassificationResult, FrameInfo } from "../models/Classification";
 
-export function extractNodesFromDependency(dep: dependency): {
-  L: Node;
-  R: Node;
-  CF?: Node;
-} {
-  let fileFrom, lineFrom, fileTo, lineTo, cfLine, cfFileName = "";
-
-  if (dep.type.startsWith("CONFLUENCE")) {
-    const sourceOne = dep.body.interference.find(el => el.type === "source1");
-    const sourceTwo = dep.body.interference.find(el => el.type === "source2");
-    const confluence = dep.body.interference.find(el => el.type === "confluence");
-
-    if (!sourceOne || !sourceTwo || !confluence) {
-      throw new Error("Missing interference elements: source1, source2, or confluence.");
-    }
-
-    fileFrom = sourceOne.location.file.replaceAll("\\", "/");
-    lineFrom = sourceOne;
-    fileTo = sourceTwo.location.file.replaceAll("\\", "/");
-    lineTo = sourceTwo;
-    cfLine = confluence;
-    cfFileName = confluence.location.file.replaceAll("\\", "/");
-  } else {
-    fileFrom = dep.body.interference[0].location.file.replaceAll("\\", "/"); // first filename
-    lineFrom = dep.body.interference[0]; // first line
-    fileTo = dep.body.interference[dep.body.interference.length - 1].location.file.replaceAll("\\", "/"); // last filename
-    lineTo = dep.body.interference[dep.body.interference.length - 1]; //last line
+/**
+ * Resolve the actual source file path for a classification frame. FrameInfo.fileKey is a
+ * normalized (path-and-extension-stripped) identifier used only for classification
+ * comparisons; the raw frame carries the real file/class needed to look up diff lines.
+ */
+function resolveFrameFileName(frame: FrameInfo): string {
+  const raw = frame.frame as { file?: string; class?: string; location?: { file?: string; class?: string } };
+  const rawFile = raw.file ?? raw.location?.file;
+  if (rawFile) {
+    return ensureJavaExtension(rawFile.replaceAll("\\", "/"));
   }
-
-  // if the filename is unknown, try to get the first valid one from the stack trace
-  if (fileFrom === "UNKNOWN" || fileTo === "UNKNOWN") {
-    updateLocationFromStackTrace(dep, { inplace: true });
-    fileFrom = dep.body.interference[0].location.file.replaceAll("\\", "/");
-    fileTo = dep.type.startsWith("CONFLUENCE")
-      ? dep.body.interference[1].location.file.replaceAll("\\", "/")
-      : dep.body.interference[dep.body.interference.length - 1].location.file.replaceAll("\\", "/");
+  const rawClass = raw.class ?? raw.location?.class;
+  if (rawClass) {
+    return ensureJavaExtension(rawClass.replaceAll(".", "/"));
   }
+  return ensureJavaExtension(frame.fileKey);
+}
 
-  const L_Lines: string[] = [];
-  const R_Lines: string[] = [];
-  let leftRow, rightRow;
-
+/**
+ * Build a graph Node for a classification frame, reading the frame's source line and the
+ * one above and below it from the rendered diff so the node shows a small code snippet.
+ */
+function buildNodeFromFrame(frame: FrameInfo): Node {
+  const fileName = resolveFrameFileName(frame);
+  const lines: string[] = [];
   for (let i = -1; i <= 1; i++) {
-    leftRow = getDiffLine(fileFrom, lineFrom.location.line + i);
-    rightRow = getDiffLine(fileTo, lineTo.location.line + i);
+    const row = getDiffLine(fileName, frame.line + i);
+    lines.push(row?.querySelector(".d2h-code-line-ctn")?.textContent || "");
+  }
+  return new Node(fileName, lines, frame.line, "", false, true, false);
+}
 
-    const leftText = leftRow.querySelector(".d2h-code-line-ctn")?.textContent;
-    const rightText = rightRow.querySelector(".d2h-code-line-ctn")?.textContent;
+/** Normalize a path: forward slashes, and no leading "./" or "/". */
+const normalizePath = (p: string) => p.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "");
 
-    L_Lines.push(leftText || "");
-    R_Lines.push(rightText || "");
+/**
+ * Reconcile filenames across a set of nodes so the same file is represented by the same
+ * string (Grouping_nodes groups strictly by exact fileName match). When one node's path is
+ * a suffix of another's (e.g. "Main.java" vs "src/main/java/pkg/Main.java"), collapse both
+ * to the shorter one.
+ */
+function unifyFileNames(nodes: Node[]): void {
+  nodes.forEach((n) => {
+    n.fileName = normalizePath(n.fileName);
+  });
+
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = 0; j < nodes.length; j++) {
+      if (i === j) continue;
+      const a = nodes[i].fileName;
+      const b = nodes[j].fileName;
+      if (!a || !b || a === b) continue;
+
+      if (a.includes(b) && b.length < a.length) {
+        nodes[i].fileName = b;
+      } else if (b.includes(a) && a.length < b.length) {
+        nodes[j].fileName = a;
+      }
+    }
+  }
+}
+
+/**
+ * Build the graph's L/R/LC/RC nodes directly from a DF/OA classification result, instead of
+ * re-deriving source/sink locations from the raw dependency. This guarantees the rendered
+ * graph always matches the nodes classification actually reasoned about.
+ *
+ * LC/RC only end up distinct from L/R when the classified sequence crosses into a second
+ * file (e.g. DF_B2, DF_D2, ...); otherwise they mirror L/R exactly, so Grouping_nodes'
+ * dedup treats them as the same node.
+ *
+ * Returns null when the conflict has no usable classification (error label) or is a CF
+ * conflict (not yet wired into Grouping_nodes/getGraphType).
+ */
+export function buildNodesFromClassification(
+  classification: ClassificationResult
+): { L: Node; R: Node; LC: Node; RC: Node } | null {
+  if (classification.label.startsWith("Error:")) {
+    return null;
+  }
+  if (classification.conflictType === "CF") {
+    return null;
   }
 
-  const L = new Node(fileFrom, L_Lines, lineFrom.location.line, "", false, true, false);
-  const R = new Node(fileTo, R_Lines, lineTo.location.line, "", false, true, false);
+  const leftFrames = classification.leftFrames;
+  const rightFrames = classification.rightFrames;
+  if (!leftFrames || !rightFrames || leftFrames.length === 0 || rightFrames.length === 0) {
+    return null;
+  }
 
-  const result = { L, R } as { L: Node; R: Node; CF?: Node };
+  const leftEndpoints = framesForClassification(leftFrames);
+  const rightEndpoints = framesForClassification(rightFrames);
 
-  return result;
+  const L = buildNodeFromFrame(leftEndpoints[0]);
+  const LC = buildNodeFromFrame(leftEndpoints[leftEndpoints.length - 1]);
+  const R = buildNodeFromFrame(rightEndpoints[0]);
+  const RC = buildNodeFromFrame(rightEndpoints[rightEndpoints.length - 1]);
+
+  unifyFileNames([L, R, LC, RC]);
+
+  return { L, R, LC, RC };
 }
