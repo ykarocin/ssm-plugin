@@ -92,7 +92,7 @@ export default function DiffView({ diff, modifiedLines, filesFromBase }: DiffVie
       }
     };
 
-    //function to showing only context lines
+    // function to show only context lines
     const collapsedViewed = () => {
       const diffFiles = document.querySelectorAll<HTMLElement>(".d2h-file-wrapper");
 

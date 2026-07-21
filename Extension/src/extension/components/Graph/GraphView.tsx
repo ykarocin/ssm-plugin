@@ -38,11 +38,6 @@ export default function GraphView({ data, conflictGridType, dependencyType }: Gr
   const [gridRect, setGridRect] = useState<DOMRect | null>(null);
 
   const nodeRefs = useRef<Array<Array<HTMLDivElement | null>>>([]);
-//   useEffect(() => {
-//   nodeRefs.current = [];
-//   setFileContours([]);
-//   setArrows([]);
-// }, [conflictGridType]);
 
   useEffect(() => {
     if (gridRef.current && conflictGridType) {

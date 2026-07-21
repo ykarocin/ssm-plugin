@@ -1,5 +1,5 @@
 #dependency-plugin {
-  position: relative; /* Define um referencial fixo para os elementos filhos */
+  position: relative; /* Establishes a positioning context for child elements */
 }
 
 .dependency-list {
@@ -76,7 +76,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  flex-direction: column; /* Para alinhar o texto abaixo do spinner */
+  flex-direction: column; /* Stack the text below the spinner */
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);

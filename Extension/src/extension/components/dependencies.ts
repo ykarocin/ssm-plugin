@@ -1,5 +1,12 @@
 import { dependency, tracedNode } from "../../models/AnalysisOutput";
 
+/**
+ * Remove duplicate dependencies from the list.
+ *
+ * Two dependencies are considered duplicates when they share the same type and the
+ * same endpoints - compared by the first and last stack-trace frames of both the
+ * first and last interference nodes. The first occurrence of each is kept.
+ */
 const filterDuplicatedDependencies = (dependencies: dependency[]) => {
   const uniqueDependencies: dependency[] = [];
   dependencies.forEach((dep) => {
@@ -38,6 +45,13 @@ const filterDuplicatedDependencies = (dependencies: dependency[]) => {
   return uniqueDependencies;
 };
 
+/**
+ * Walk a stack trace from `maxDepth` toward the top and return the deepest frame whose
+ * class maps to a file actually present in the rendered diff. Frames whose file is not
+ * shown in the diff are skipped. Falls back to the top frame (index 0) if none match.
+ *
+ * @throws if the diff container element is not present in the DOM.
+ */
 const getLastValidNode = (stackTrace: tracedNode[], maxDepth: number) => {
   // get all the diff file elements
   let diffFiles: NodeListOf<Element> | Element[] | undefined = document
@@ -66,6 +80,18 @@ const getLastValidNode = (stackTrace: tracedNode[], maxDepth: number) => {
   return stackTrace[0];
 };
 
+/**
+ * Rewrite an interference node's `location` (file/line/class) from its stack trace, so
+ * that dependencies with an "UNKNOWN" location point at a concrete source line.
+ *
+ * The first and last interference nodes are updated; for CONFLUENCE dependencies the two
+ * sources are interference[0]/interference[1] and the confluence point is the last node.
+ *
+ * @param options.inplace - when true, mutate and return `dep`; otherwise operate on a clone.
+ * @param options.mode - "default" uses each node's top stack frame; "deep" uses
+ *   {@link getLastValidNode} to pick the deepest frame whose file is present in the diff.
+ * @throws if any of the required stack traces are missing or empty.
+ */
 const updateLocationFromStackTrace = (dep: dependency, options?: { inplace?: boolean; mode?: "default" | "deep" }) => {
   console.log("Updating location from stack trace");
   const hasValidStackTrace = (st: Array<tracedNode> | undefined): st is Array<tracedNode> =>

@@ -104,6 +104,14 @@ const getLayoutForClassification = (label: string): ConflictGridType => {
   );
 };
 
+/**
+ * Group the graph's four nodes (L, R, LC, RC) into per-file buckets for rendering.
+ *
+ * Assigns each node its role ("L"/"R"/"LC"/"RC"), collapses nodes that land on the same
+ * file and highlight line, groups them by file name into FileObjects, and sorts each
+ * file's nodes by line. Only OA and CONFLICT (DF) dependencies are handled; other types
+ * return undefined.
+ */
 const Grouping_nodes = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node) => {
   const graph: FileObject[] = [];
 
@@ -149,6 +157,15 @@ const Grouping_nodes = (dep: dependency, L: Node, R: Node, LC: Node, RC: Node) =
   }
 };
 
+/**
+ * Determine the grid layout (rows/columns + node positions) used to render a conflict.
+ *
+ * When a non-error classification is supplied, the layout is looked up directly from its
+ * label ({@link getLayoutForClassification}). Otherwise it falls back to a geometric
+ * decision tree that inspects how many of L/R/LC/RC are distinct and which of them share
+ * a file, mapping each case to a predefined layout. Only OA and CONFLICT (DF) types are
+ * handled; other types return null.
+ */
 const getGraphType = (
   dep: dependency,
   L: Node,

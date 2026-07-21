@@ -412,7 +412,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     <div id="dependency-plugin" ref={pluginRef}>
       {loading ? (
         <div className="loading-container">
-          <div className="spinner"></div> {/* Exibindo o spinner enquanto carrega */}
+          <div className="spinner"></div>
           <p>Loading analysis...</p>
         </div>
       ) : (

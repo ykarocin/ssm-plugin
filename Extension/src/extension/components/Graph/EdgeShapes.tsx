@@ -13,7 +13,7 @@ interface EdgeShapeProps {
 }
 
 /**
- * Call Edge: Linha reta simples com seta triangular
+ * Call Edge: simple straight line with a triangular arrowhead
  */
 function CallEdge({ x1, y1, x2, y2, targetFace = "left", originFace = "right" }: EdgeShapeProps) {
   const colors = getEdgeColors("call");
@@ -101,7 +101,7 @@ function CallEdge({ x1, y1, x2, y2, targetFace = "left", originFace = "right" }:
 }
 
 /**
- * OA Edge: Seta simples e grossa representando Overriding Assignment
+ * OA Edge: simple thick arrow representing an Overriding Assignment
  */
 function OAEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
   const colors = getEdgeColors("OA");
@@ -129,13 +129,13 @@ function OAEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
 }
 
 /**
- * DF Edge: Múltiplos degraus (steps) representando fluxo de dados com seta convergente
+ * DF Edge: multiple steps representing data flow, with a converging arrow
  */
 function DFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
   const colors = getEdgeColors("DF");
   const topOffset = 18;
 
-  // Calcular ângulo e comprimento
+  // Compute angle and length
   const dx = x2 - x1;
   const dy = y2 - y1;
   const angle = Math.atan2(dy, dx) * (180 / Math.PI) - 90;
@@ -155,7 +155,7 @@ function DFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
 
   return (
     <g transform={`translate(${x1}, ${y1}) rotate(${angle})`}>
-      {/* Degraus do fluxo de dados */}
+      {/* Data-flow steps */}
       {(() => {
         const steps = [];
         let currentY = 0;
@@ -163,29 +163,29 @@ function DFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
         let previousHeight = 0;
         
         while (currentY < stepAreaLength) {
-          // Aumentar a altura gradativamente conforme aproxima da ponta
+          // Gradually increase the height as it approaches the tip
           const progressiveHeight = stepHeight + 2 * stepIndex * stepHeight;
 
-          // Diminuir o gap entre os degraus conforme aproxima da ponta
+          // Shrink the gap between steps as it approaches the tip
           const progressiveGap = Math.max(2, stepSpacing - stepSpacing * stepIndex * 0.5);
 
           const nextProgressiveGap = Math.max(2, stepSpacing - stepSpacing * (stepIndex + 1) * 0.5);
 
-          // Calcular espaço restante
+          // Compute remaining space
           const spaceRemaining = stepAreaLength - currentY - nextProgressiveGap;
           
-          // Verificar se é o último degrau
+          // Check whether this is the last step
           const isLastStep = progressiveHeight >= spaceRemaining;
           
           let finalHeight;
           if (isLastStep && spaceRemaining < previousHeight) {
-            // Se o espaço restante for menor que o degrau anterior, preencher toda área
+            // If the remaining space is smaller than the previous step, fill the whole area
             finalHeight = stepAreaLength - currentY + borderRadius * 2;
           } else {
             finalHeight = Math.min(progressiveHeight, spaceRemaining);
           }
           
-          // Usar Y acumulado da iteração anterior
+          // Use the Y accumulated from the previous iteration
           const y = currentY;
           
           steps.push(
@@ -211,8 +211,8 @@ function DFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
         return steps;
       })()}
 
-      {/* Seta completa com corpo e ponta */}
-      {/* Corpo da seta */}
+      {/* Full arrow with body and tip */}
+      {/* Arrow body */}
       <rect
         x={-arrowWidth / 2}
         y={bodyStartY}
@@ -225,7 +225,7 @@ function DFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
         strokeWidth="0.5"
       />
 
-      {/* Ponta triangular da seta */}
+      {/* Triangular arrow tip */}
       <path
         d={`M ${-arrowWidth} ${bodyStartY + arrowLength - arrowHeadLength}
           L ${arrowWidth} ${bodyStartY + arrowLength - arrowHeadLength}
@@ -241,13 +241,13 @@ function DFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
 }
 
 /**
- * CF Edge: Linha em degraus (stepped) representando confluence
+ * CF Edge: stepped line representing a confluence
  */
 function CFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
   const colors = getEdgeColors("CF");
   const markerId = "marker-cf";
 
-  // Criar path em formato de degraus (orthogonal)
+  // Build a stepped (orthogonal) path
   const midX = (x1 + x2) / 2;
   const pathData = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
 
@@ -285,7 +285,7 @@ function CFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
         markerEnd={`url(#${markerId})`}
         strokeLinejoin="miter"
       />
-      {/* Pequenos marcadores nos cantos para enfatizar o fluxo de controle */}
+      {/* Small corner markers to emphasize the control flow */}
       <circle cx={midX} cy={y1} r={3} fill={colors.primary} opacity={0.7} />
       <circle cx={midX} cy={y2} r={3} fill={colors.primary} opacity={0.7} />
     </>
@@ -293,7 +293,7 @@ function CFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
 }
 
 /**
- * Componente principal que renderiza a aresta apropriada baseada no tipo
+ * Main component that renders the appropriate edge based on its type
  */
 export function EdgeShape({ x1, y1, x2, y2, type, originFace, targetFace }: EdgeShapeProps) {
   const baseType = type || "call";

@@ -16,7 +16,7 @@ type OccupiedFaces = Set<string>;
 
 const getFaceKey = (nodeRole: string, face: NodeFace): string => `${nodeRole}:${face}`;
 
-// Função principal
+// Main entry point
 export function getArrows(
   nodeCoords: { [role: string]: { x: number; y: number; width: number; height: number; idx: number; node: CodeNodeProps } },
   gridRect: { x: number; y: number; width: number; height: number },
@@ -242,7 +242,7 @@ const BuildArrow = (
   let originFace: NodeFace = "left";
   let targetFace: NodeFace = "right";
 
-  // Conecta pelas bordas reais dos nós, priorizando o eixo predominante.
+  // Connect via the nodes' real edges, prioritizing the dominant axis.
   if (Math.abs(dx) >= Math.abs(dy)) {
     if (dx >= 0) {
       fromX = fromNode.x + fromNode.width;
@@ -269,7 +269,7 @@ const BuildArrow = (
     }
   }
 
-  // Aplicar clearance para manter distância de contornos de arquivo
+  // Apply clearance to keep distance from file outlines
   const clearanceMap = { call: 0, OA: 15, DF: 40, CF: 15 };
   const clearance = clearanceMap[type] || 0;
 
