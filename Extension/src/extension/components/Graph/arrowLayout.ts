@@ -270,19 +270,24 @@ const BuildArrow = (
   }
 
   // Apply clearance to keep distance from file outlines
-  const clearanceMap = { call: 0, OA: 15, DF: 40, CF: 15 };
-  const clearance = clearanceMap[type] || 0;
+  const clearanceMap = { call: 0, OA: 15, DF: 12, CF: 15 };
+  const maxClearance = clearanceMap[type] || 0;
+  const minArrowLength = 8;
+
+  const edgeDx = toX - fromX;
+  const edgeDy = toY - fromY;
+  const edgeDistance = Math.sqrt(edgeDx * edgeDx + edgeDy * edgeDy);
+  const clearance = edgeDistance > 0
+    ? Math.min(maxClearance, Math.max(0, (edgeDistance - minArrowLength) / 2))
+    : 0;
 
   if (clearance > 0) {
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    if (distance > 0) {
-      const ux = dx / distance;
-      const uy = dy / distance;
-      fromX += ux * clearance;
-      fromY += uy * clearance;
-      toX -= ux * clearance;
-      toY -= uy * clearance;
-    }
+    const ux = edgeDx / edgeDistance;
+    const uy = edgeDy / edgeDistance;
+    fromX += ux * clearance;
+    fromY += uy * clearance;
+    toX -= ux * clearance;
+    toY -= uy * clearance;
   }
 
   return {

@@ -133,7 +133,6 @@ function OAEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
  */
 function DFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
   const colors = getEdgeColors("DF");
-  const topOffset = 18;
 
   // Compute angle and length
   const dx = x2 - x1;
@@ -142,12 +141,22 @@ function DFEdge({ x1, y1, x2, y2 }: EdgeShapeProps) {
   const distance = Math.sqrt(dx * dx + dy * dy);
 
   const borderRadius = 2;
-
-  const stepHeight = 4;
-  const stepSpacing = 3 * stepHeight;
-  const arrowLength = 36;
   const arrowWidth = 32;
-  const arrowHeadLength = 28;
+
+  let topOffset = 18;
+  let stepHeight = 4;
+  let stepSpacing = 12;
+  let arrowLength = 36;
+  let arrowHeadLength = 28;
+
+  const naturalMinLength = topOffset + arrowLength + stepSpacing;
+  const scale = distance > 0 ? Math.min(1, distance / naturalMinLength) : 1;
+
+  topOffset *= scale;
+  stepHeight *= scale;
+  stepSpacing *= scale;
+  arrowLength *= scale;
+  arrowHeadLength *= scale;
   const stepAreaLength = Math.max(0, distance - topOffset - arrowLength - stepSpacing);
   const bodyStartY = topOffset + stepAreaLength + stepSpacing;
   const stepWidth = arrowWidth;
