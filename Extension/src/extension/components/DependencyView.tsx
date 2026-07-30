@@ -166,7 +166,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
     const dep = dependencies[index];
     try {
       // Build dependency copy for processing; fall back to location attributes if no stack trace
-      const depCopy = toClassifiableDependency(dep);
+      const depCopy = dep;
       const modifiedLinesMap = buildModifiedLinesMap(modifiedLines);
 
       // Classify the dependency first, then build the graph's nodes directly from the
@@ -257,13 +257,13 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
         setloading(false);
         dependencyViewConfig = { owner, repository, pull_number };
         let dependencies = response.getDependencies();
-        dependencies.forEach((dep) => {
-          if (
-            dep.body.interference[0].location.file === "UNKNOWN" ||
-            dep.body.interference[dep.body.interference.length - 1].location.file === "UNKNOWN"
-          )
-            updateLocationFromStackTrace(dep, { inplace: true });
-        });
+        // dependencies.forEach((dep) => {
+        //   if (
+        //     dep.body.interference[0].location.file === "UNKNOWN" ||
+        //     dep.body.interference[dep.body.interference.length - 1].location.file === "UNKNOWN"
+        //   )
+        //     updateLocationFromStackTrace(dep, { inplace: true });
+        // });
         dependencies = filterDuplicatedDependencies(dependencies);
 
         // Drop conflicts classification can't make sense of (error label) - there's no
@@ -273,7 +273,7 @@ export default function DependencyView({ owner, repository, pull_number }: Depen
         const modifiedLinesMap = buildModifiedLinesMap(response.data.modifiedLines ?? []);
         const seenClassificationKeys = new Set<string>();
         dependencies = dependencies.filter((dep) => {
-          const classification = classifyDependency(toClassifiableDependency(dep), modifiedLinesMap);
+          const classification = classifyDependency(dep, modifiedLinesMap);
           if (classification.label.startsWith("Error:")) return false;
 
           const key = classificationDedupeKey(classification);

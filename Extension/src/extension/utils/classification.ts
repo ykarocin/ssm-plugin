@@ -162,8 +162,9 @@ export function getFramesWithLines(
   ) {
     const locFileKey = normalizeFileKey(locationFile);
     if (locFileKey) {
-      const lastFrame = frames[frames.length - 1];
-      if (!lastFrame || lastFrame.fileKey !== locFileKey || lastFrame.line !== locationLine) {
+      let isPresent = false;
+      isPresent = frames.some((n) => n.fileKey === locFileKey && n.line === locationLine);
+      if (!isPresent) {
         frames.push({
           fileKey: locFileKey,
           line: locationLine,
