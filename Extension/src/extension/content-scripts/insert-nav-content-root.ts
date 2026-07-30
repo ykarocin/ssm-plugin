@@ -125,17 +125,16 @@ const prepareDependenciesTab = async () => {
   if (!nav || !navTabs) throw new Error("nav not found");
 
   // remove the selected class from the current selected tab
-  let curSelected = nav.querySelector(".selected");
+  let curSelected = nav.querySelector("[class*='selected']");
   if (curSelected) {
   } else {
     curSelected = nav.querySelector("[aria-selected='true']");
   }
   if (!curSelected) throw new Error("selected tab not found");
   curSelected.removeAttribute("aria-selected");
-  curSelected.classList.remove("selected");
-  // remove any class containing "TabNav-Selected"
+  // remove any class containing "selected"
   curSelected.classList.forEach((cls) => {
-    if (cls.includes("TabNav-Selected")) {
+    if (cls.includes("selected")) {
       curSelected!.classList.remove(cls);
       curSelected!.setAttribute("selected-class-name", cls);
     }
